@@ -1,12 +1,10 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../data/models/quran_audio_station.dart';
+import '../../data/services/haramain_live_service.dart';
 
 /// An in-app, distraction-free viewer for the official Haramain broadcasts.
 class HaramainLivePage extends StatefulWidget {
@@ -80,7 +78,7 @@ class _HaramainLivePageState extends State<HaramainLivePage>
         _loadingProgress = 0;
       });
     }
-    final videoId = await _resolveLiveVideoId();
+    final videoId = await HaramainLiveService.resolveVideoId(widget.station);
     if (!mounted) return;
 
     if (videoId != null) {
@@ -96,33 +94,6 @@ class _HaramainLivePageState extends State<HaramainLivePage>
       await _controller.loadRequest(Uri.parse(fallbackUrl));
     } else {
       setState(() => _hasError = true);
-    }
-  }
-
-  Future<String?> _resolveLiveVideoId() async {
-    final rawUrl = widget.station.watchUrl;
-    if (rawUrl == null) return null;
-
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 12);
-    try {
-      final request = await client.getUrl(Uri.parse(rawUrl));
-      request.headers.set(
-        HttpHeaders.userAgentHeader,
-        'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
-      );
-      final response = await request.close();
-      if (response.statusCode < 200 || response.statusCode >= 300) return null;
-
-      final html = await utf8.decoder.bind(response).join();
-      return RegExp(r'"videoId":"([A-Za-z0-9_-]{11})"')
-          .firstMatch(html)
-          ?.group(1);
-    } on Object {
-      return null;
-    } finally {
-      client.close(force: true);
     }
   }
 

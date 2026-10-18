@@ -499,6 +499,13 @@ void main() {
             'https://www.youtube.com/@SaudiSunnahTv/live',
           ]),
         );
+        expect(
+          liveStreams.map((station) => station.youtubeChannelId),
+          containsAll(<String>[
+            'UCos52azQNBgW63_9uDJoPDA',
+            'UCROKYPep-UuODNwyipe6JMw',
+          ]),
+        );
 
         // Switch to Radio Stations tab (tap the tab in the TabBar)
         await tester.tap(

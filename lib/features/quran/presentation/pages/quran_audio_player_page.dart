@@ -8,6 +8,7 @@ import '../../../../core/widgets/mishkat_widgets.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../data/models/quran_audio_station.dart';
 import '../../data/models/quran_models.dart';
+import '../../data/services/haramain_live_service.dart';
 import '../cubit/quran_cubit.dart';
 import '../cubit/quran_state.dart';
 import '../widgets/quran_mini_player.dart';
@@ -783,78 +784,104 @@ class _LiveStreamCard extends StatelessWidget {
       child: Semantics(
         button: true,
         label: '${station.title}، مباشر الآن، مشاهدة البث الرسمي',
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(MishkatRadius.lg),
-          clipBehavior: Clip.antiAlias,
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(MishkatRadius.lg),
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: isMakkah
-                    ? [const Color(0xFF0D3C32), const Color(0xFF08271F)]
-                    : [const Color(0xFF174A43), const Color(0xFF0A2D2A)],
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(MishkatRadius.lg),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .16),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: .16),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: InkWell(
-              onTap: isOpening ? null : onWatch,
-              child: Padding(
-                padding: const EdgeInsets.all(MishkatSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Material(
+              color: const Color(0xFF092B24),
+              borderRadius: BorderRadius.circular(MishkatRadius.lg),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: isOpening ? null : onWatch,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 9,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD94343),
-                            borderRadius: BorderRadius.circular(
-                              MishkatRadius.pill,
+                    _LiveThumbnail(station: station, accent: accent),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: [0, .42, 1],
+                          colors: [
+                            Color(0x99000000),
+                            Color(0x10000000),
+                            Color(0xE6000000),
+                          ],
+                        ),
+                      ),
+                    ),
+                    PositionedDirectional(
+                      top: 12,
+                      start: 12,
+                      end: 12,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: _LiveBadge(
+                                color: const Color(0xFFE13F45),
+                                icon: Icons.circle,
+                                label: 'مباشر الآن',
+                              ),
                             ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.circle, size: 7, color: Colors.white),
-                              SizedBox(width: 5),
-                              Text(
-                                'مباشر الآن',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerEnd,
+                              child: _LiveBadge(
+                                color: Colors.black.withValues(alpha: .48),
+                                icon: Icons.verified_rounded,
+                                label: 'مصدر رسمي',
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              const Icon(
-                                Icons.verified_rounded,
-                                color: Colors.white70,
-                                size: 17,
-                              ),
-                              const SizedBox(width: 5),
-                              Flexible(
-                                child: Text(
-                                  'مصدر رسمي',
+                        ],
+                      ),
+                    ),
+                    PositionedDirectional(
+                      start: 14,
+                      end: 14,
+                      bottom: 13,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  station.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 6,
+                                          ),
+                                        ],
+                                      ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  station.city ?? station.subtitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -863,134 +890,58 @@ class _LiveStreamCard extends StatelessWidget {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: MishkatSpacing.lg),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .1),
-                            borderRadius: BorderRadius.circular(
-                              MishkatRadius.md,
-                            ),
-                            border: Border.all(
-                              color: accent.withValues(alpha: .55),
+                              ],
                             ),
                           ),
-                          child: Icon(
-                            isMakkah
-                                ? Icons.mosque_rounded
-                                : Icons.account_balance_rounded,
-                            color: accent,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: MishkatSpacing.base),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                station.title,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 13,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accent,
+                              borderRadius: BorderRadius.circular(
+                                MishkatRadius.pill,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                station.subtitle,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 3),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: MishkatSpacing.lg),
-                    Container(
-                      height: 1,
-                      color: Colors.white.withValues(alpha: .1),
-                    ),
-                    const SizedBox(height: MishkatSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.live_tv_rounded,
-                                size: 17,
-                                color: accent,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  station.sourceLabel ?? 'البث الرسمي',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: accent,
-                            borderRadius: BorderRadius.circular(
-                              MishkatRadius.pill,
+                              ],
                             ),
-                          ),
-                          child: isOpening
-                              ? const SizedBox.square(
-                                  dimension: 17,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(0xFF092B24),
-                                  ),
-                                )
-                              : const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.play_arrow_rounded,
-                                      size: 19,
+                            child: isOpening
+                                ? const SizedBox.square(
+                                    dimension: 17,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                       color: Color(0xFF092B24),
                                     ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'شاهد البث',
-                                      style: TextStyle(
+                                  )
+                                : const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.play_arrow_rounded,
+                                        size: 19,
                                         color: Color(0xFF092B24),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w900,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ],
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'شاهد البث',
+                                        style: TextStyle(
+                                          color: Color(0xFF092B24),
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1001,6 +952,101 @@ class _LiveStreamCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LiveThumbnail extends StatelessWidget {
+  const _LiveThumbnail({required this.station, required this.accent});
+
+  final QuranAudioStation station;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<String?>(
+    future: HaramainLiveService.resolveVideoId(station),
+    builder: (context, snapshot) {
+      final fallback = _ThumbnailFallback(accent: accent);
+      final videoId = snapshot.data;
+      if (videoId == null) return fallback;
+
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          fallback,
+          Image.network(
+            HaramainLiveService.thumbnailUrl(videoId),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (_, _, _) => fallback,
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _ThumbnailFallback extends StatelessWidget {
+  const _ThumbnailFallback({required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+        colors: [Color(0xFF174A43), Color(0xFF071F1A)],
+      ),
+    ),
+    child: Center(
+      child: Icon(
+        Icons.live_tv_rounded,
+        color: accent.withValues(alpha: .8),
+        size: 46,
+      ),
+    ),
+  );
+}
+
+class _LiveBadge extends StatelessWidget {
+  const _LiveBadge({
+    required this.color,
+    required this.icon,
+    required this.label,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(MishkatRadius.pill),
+      border: Border.all(color: Colors.white.withValues(alpha: .16)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: icon == Icons.circle ? 7 : 15, color: Colors.white),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _StationCard extends StatelessWidget {

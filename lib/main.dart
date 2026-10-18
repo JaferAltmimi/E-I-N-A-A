@@ -22,7 +22,6 @@ Future<void> main() async {
     androidNotificationChannelDescription:
         'التلاوات وإذاعات القرآن الكريم أثناء استخدام التطبيقات الأخرى',
     androidNotificationOngoing: true,
-    androidStopForegroundOnPause: false,
   );
   Bloc.observer = const AppBlocObserver();
 

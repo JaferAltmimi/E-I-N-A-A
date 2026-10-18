@@ -204,6 +204,7 @@ class QuranAudioService {
       album: 'إذاعات القرآن · مشكاة',
       title: title ?? 'إذاعة القرآن الكريم',
       artist: sourceLabel ?? 'مشكاة',
+      isLive: true,
       extras: const <String, dynamic>{'kind': 'radio'},
     );
   }
@@ -243,6 +244,7 @@ class QuranAudioService {
           child: AudioSource.uri(Uri.parse(segment.audioUrl), tag: mediaItem),
           start: segment.start,
           end: segment.end,
+          tag: mediaItem,
         ),
       );
       if (requestId != _activeRequestId) return;

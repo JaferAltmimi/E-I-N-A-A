@@ -61,7 +61,8 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
   void initState() {
     super.initState();
     int initialPage = context.read<QuranCubit>().state.currentPage - 1;
-    final targetGlobal = widget.initialGlobalAyah ??
+    final targetGlobal =
+        widget.initialGlobalAyah ??
         (widget.visualRecallInitialQueue != null &&
                 widget.visualRecallInitialQueue!.isNotEmpty
             ? widget.visualRecallInitialQueue!.first
@@ -93,6 +94,12 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
     if (_isPageZoomed != isZoomed) {
       setState(() => _isPageZoomed = isZoomed);
     }
+  }
+
+  void _setReaderScale(BuildContext context, double scale) {
+    final fontSize = (scale.clamp(1.0, 1.875) * 32).clamp(32, 60).toDouble();
+    context.read<QuranCubit>().setFontSize(fontSize);
+    context.read<SettingsCubit>().setQuranFont(fontSize);
   }
 
   @override
@@ -180,22 +187,30 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
                       ayah: state.selectedAyah!,
                       quranData: quranData,
                     );
-                  } else if (result == 'visual_recall_single' && context.mounted) {
+                  } else if (result == 'visual_recall_single' &&
+                      context.mounted) {
                     final recall = _tryGetVisualRecallCubit(context);
                     if (recall != null) {
                       context.read<MushafInteractionCubit>().clearSelection();
-                      await recall.startSingleAyah(state.selectedAyah!.globalAyah);
+                      await recall.startSingleAyah(
+                        state.selectedAyah!.globalAyah,
+                      );
                     }
-                  } else if (result == 'visual_recall_range' && context.mounted) {
+                  } else if (result == 'visual_recall_range' &&
+                      context.mounted) {
                     final recall = _tryGetVisualRecallCubit(context);
                     if (recall != null) {
                       context.read<MushafInteractionCubit>().clearSelection();
-                      recall.enterRangeSelection(state.selectedAyah!.globalAyah);
+                      recall.enterRangeSelection(
+                        state.selectedAyah!.globalAyah,
+                      );
                     }
                   }
 
                   if (context.mounted) {
-                    context.read<MushafInteractionCubit>().setActionSheetOpen(false);
+                    context.read<MushafInteractionCubit>().setActionSheetOpen(
+                      false,
+                    );
                   }
                 },
               ),
@@ -215,244 +230,231 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
                     if (targetPage != null) {
                       final targetIndex = targetPage - 1;
                       if (_controller.hasClients &&
-                          (_controller.page?.round() ?? targetIndex) != targetIndex) {
+                          (_controller.page?.round() ?? targetIndex) !=
+                              targetIndex) {
                         _controller.animateToPage(
                           targetIndex,
-                          duration: const Duration(milliseconds: 240),
-                          curve: Curves.easeOut,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOutCubic,
                         );
                       }
                     }
                   },
                 ),
-          BlocListener<QuranCubit, QuranState>(
-            listenWhen: (previous, current) =>
-                previous.audioGlobalAyah != current.audioGlobalAyah ||
-                previous.audioStatus != current.audioStatus,
-            listener: (context, state) {
-              final activeAyah = (state.audioStatus == QuranAudioStatus.playing ||
-                      state.audioStatus == QuranAudioStatus.loading ||
-                      state.audioStatus == QuranAudioStatus.paused)
-                  ? state.audioGlobalAyah
-                  : null;
-              context.read<MushafInteractionCubit>().setPlayingAyah(activeAyah);
-            },
-          ),
-        ],
-        child: BlocConsumer<QuranCubit, QuranState>(
-          listenWhen: (previous, current) =>
-              previous.currentPage != current.currentPage,
-          listener: (context, state) {
-            final target = state.currentPage - 1;
-            if (_controller.hasClients &&
-                (_controller.page?.round() ?? target) != target) {
-              _controller.animateToPage(
-                target,
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOut,
-              );
-            }
-          },
-          buildWhen: (previous, current) =>
-              previous.currentPage != current.currentPage ||
-              previous.fontSize != current.fontSize ||
-              previous.bookmarks != current.bookmarks ||
-              previous.status != current.status ||
-              previous.data != current.data,
-          builder: (context, state) {
-            final data = state.data!;
-            final point = data.page(state.currentPage).first;
-            final chapter = data.chapter(point.surah);
-            return Scaffold(
-              appBar: _focus
-                  ? null
-                  : AppBar(
-                      leading: IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        tooltip: 'العودة إلى الفهرس',
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      title: Column(
-                        children: [
-                          Text('سورة ${chapter.name}'),
-                          Text(
-                            'صفحة ${state.currentPage} من 604 · الجزء ${_juzFor(data, point.global)}',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        IconButton(
-                           tooltip: state.isCurrentPageBookmarked
-                              ? 'حذف العلامة'
-                              : 'حفظ علامة',
-                          onPressed: context.read<QuranCubit>().toggleBookmark,
-                          icon: Icon(
-                            state.isCurrentPageBookmarked
-                                ? Icons.bookmark
-                                : Icons.bookmark_border,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'ملء الشاشة',
-                          onPressed: () => setState(() => _focus = true),
-                          icon: const Icon(Icons.fullscreen),
-                        ),
-                        IconButton(
-                          tooltip: 'التسميع في المصحف',
-                          onPressed: () => _showVisualRecallMenu(context),
-                          icon: const Icon(Icons.school_outlined),
-                        ),
-                        IconButton(
-                          tooltip: 'خيارات القراءة',
-                          onPressed: () => _showOptions(context),
-                          icon: const Icon(Icons.tune),
-                        ),
-                      ],
-                    ),
-              body: Stack(
-                children: [
-                  Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: PageView.builder(
-                      controller: _controller,
-                      physics: _isPageZoomed
-                          ? const NeverScrollableScrollPhysics()
-                          : const PageScrollPhysics(),
-                      itemCount: 604,
-                      onPageChanged: (index) {
-                        final page = index + 1;
-                        final recall = _tryGetVisualRecallCubit(context);
-                        final isRecallActive = recall != null &&
-                            (recall.state.hasActiveSession ||
-                                recall.state.isRangeSelecting);
-                        if (!isRecallActive) {
-                          context.read<QuranCubit>().openPage(page);
-                        }
-                        context.read<MushafInteractionCubit>().onPageChanged(page);
-                      },
-                      itemBuilder: (context, index) => _MushafPage(
-                        key: ValueKey('mushaf-page-${index + 1}'),
-                        page: index + 1,
-                        scale: state.fontSize / 32,
-                        isCurrent: (index + 1) == state.currentPage,
-                        onZoomChanged: _handleZoomChanged,
-                      ),
-                    ),
-                  ),
-                  if (_focus)
-                    PositionedDirectional(
-                      top: MediaQuery.paddingOf(context).top + 8,
-                      start: 8,
-                      child: Material(
-                        color: Theme.of(context).colorScheme.surface
-                            .withValues(alpha: .9),
-                        shape: const CircleBorder(),
-                        child: IconButton(
-                          tooltip: 'إنهاء ملء الشاشة',
-                          onPressed: () => setState(() => _focus = false),
-                          icon: const Icon(Icons.fullscreen_exit),
-                        ),
-                      ),
-                    ),
-                ],
+              BlocListener<QuranCubit, QuranState>(
+                listenWhen: (previous, current) =>
+                    previous.audioGlobalAyah != current.audioGlobalAyah ||
+                    previous.audioStatus != current.audioStatus,
+                listener: (context, state) {
+                  final activeAyah =
+                      (state.audioStatus == QuranAudioStatus.playing ||
+                          state.audioStatus == QuranAudioStatus.loading ||
+                          state.audioStatus == QuranAudioStatus.paused)
+                      ? state.audioGlobalAyah
+                      : null;
+                  context.read<MushafInteractionCubit>().setPlayingAyah(
+                    activeAyah,
+                  );
+                },
               ),
-              bottomNavigationBar: _focus
-                  ? null
-                  : _buildBottomBar(context),
-            );
-          },
-        ),
-      );
-    },
-  ),
-);
-  }
-
-  Future<void> _showVisualRecallMenu(BuildContext context) async {
-    final recallCubit = _tryGetVisualRecallCubit(context);
-    if (recallCubit == null) return;
-
-    final state = recallCubit.state;
-    final colors = context.mishkat;
-    final theme = Theme.of(context);
-    final currentPage = context.read<QuranCubit>().state.currentPage;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MishkatRadius.lg)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.textSecondary.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'التسميع والاستحضار البصري',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'اختبر حفظك مباشرة على صفحة المصحف دون الاستعانة بالنظر',
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              if (state.hasActiveSession || state.isRangeSelecting) ...[
-                ListTile(
-                  leading: Icon(Icons.close_rounded, color: colors.error),
-                  title: const Text('إنهاء جلسة التسميع الحالية'),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    if (state.isRangeSelecting) {
-                      recallCubit.cancelRangeSelection();
-                    } else {
-                      recallCubit.endSession();
-                    }
-                  },
-                ),
-              ] else ...[
-                ListTile(
-                  leading: Icon(Icons.linear_scale_rounded, color: colors.primary),
-                  title: const Text('تحديد مقطع للتسميع في هذه الصفحة'),
-                  subtitle: Text('صفحة $currentPage'),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    final layoutRepo = MushafLayoutRepository.instance;
-                    final geom = layoutRepo.isLoaded ? layoutRepo.getPageGeometry(currentPage) : null;
-                    final firstAyah = geom?.ayahs.firstOrNull?.globalAyah;
-                    if (firstAyah != null) {
-                      recallCubit.enterRangeSelection(firstAyah);
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.touch_app_outlined, color: colors.primary),
-                  title: const Text('تسميع آية معينة'),
-                  subtitle: const Text('اضغط مطولاً على أي آية واختر «تسميع الآية»'),
-                  onTap: () => Navigator.of(sheetContext).pop(),
-                ),
-              ],
-              const SizedBox(height: 8),
             ],
-          ),
-        ),
+            child: BlocConsumer<QuranCubit, QuranState>(
+              listenWhen: (previous, current) =>
+                  previous.currentPage != current.currentPage,
+              listener: (context, state) {
+                final target = state.currentPage - 1;
+                if (_controller.hasClients &&
+                    (_controller.page?.round() ?? target) != target) {
+                  _controller.animateToPage(
+                    target,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOutCubic,
+                  );
+                }
+              },
+              buildWhen: (previous, current) =>
+                  previous.currentPage != current.currentPage ||
+                  previous.fontSize != current.fontSize ||
+                  previous.bookmarks != current.bookmarks ||
+                  previous.status != current.status ||
+                  previous.data != current.data,
+              builder: (context, state) {
+                final data = state.data!;
+                final point = data.page(state.currentPage).first;
+                final chapter = data.chapter(point.surah);
+                final colors = context.mishkat;
+                final readerScale = (state.fontSize / 32).clamp(1.0, 1.875);
+                return Scaffold(
+                  backgroundColor: colors.surfaceMuted,
+                  appBar: _focus
+                      ? null
+                      : AppBar(
+                          toolbarHeight: 64,
+                          centerTitle: true,
+                          backgroundColor: colors.surface,
+                          surfaceTintColor: Colors.transparent,
+                          scrolledUnderElevation: 0,
+                          leading: IconButton(
+                            icon: const Icon(Icons.arrow_forward_rounded),
+                            tooltip: 'العودة إلى الفهرس',
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          title: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'سورة ${chapter.name}',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              Text(
+                                'صفحة ${state.currentPage} من 604 · الجزء ${_juzFor(data, point.global)}',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            IconButton(
+                              tooltip: state.isCurrentPageBookmarked
+                                  ? 'حذف العلامة'
+                                  : 'حفظ علامة',
+                              onPressed: context
+                                  .read<QuranCubit>()
+                                  .toggleBookmark,
+                              icon: Icon(
+                                state.isCurrentPageBookmarked
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'ملء الشاشة',
+                              onPressed: () => setState(() => _focus = true),
+                              icon: const Icon(Icons.fullscreen_rounded),
+                            ),
+                          ],
+                          bottom: PreferredSize(
+                            preferredSize: const Size.fromHeight(58),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                              decoration: BoxDecoration(
+                                color: colors.surface,
+                                border: Border(
+                                  bottom: BorderSide(color: colors.border),
+                                ),
+                              ),
+                              child: Center(
+                                child: _ZoomLensControl(
+                                  scale: readerScale,
+                                  onDecrease: () => _setReaderScale(
+                                    context,
+                                    readerScale - .1,
+                                  ),
+                                  onReset: () => _setReaderScale(context, 1),
+                                  onIncrease: () => _setReaderScale(
+                                    context,
+                                    readerScale + .1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                  body: Stack(
+                    children: [
+                      Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: PageView.builder(
+                          controller: _controller,
+                          physics: _isPageZoomed
+                              ? const NeverScrollableScrollPhysics()
+                              : const PageScrollPhysics(),
+                          itemCount: 604,
+                          onPageChanged: (index) {
+                            final page = index + 1;
+                            final recall = _tryGetVisualRecallCubit(context);
+                            final isRecallActive =
+                                recall != null &&
+                                (recall.state.hasActiveSession ||
+                                    recall.state.isRangeSelecting);
+                            if (!isRecallActive) {
+                              context.read<QuranCubit>().openPage(page);
+                            }
+                            context
+                                .read<MushafInteractionCubit>()
+                                .onPageChanged(page);
+                          },
+                          itemBuilder: (context, index) => Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  MishkatRadius.lg,
+                                ),
+                                border: Border.all(color: colors.border),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: .07),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  MishkatRadius.lg,
+                                ),
+                                child: _MushafPage(
+                                  key: ValueKey('mushaf-page-${index + 1}'),
+                                  page: index + 1,
+                                  scale: readerScale,
+                                  isCurrent: (index + 1) == state.currentPage,
+                                  onZoomChanged: _handleZoomChanged,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_focus)
+                        Positioned(
+                          top: MediaQuery.paddingOf(context).top + 60,
+                          left: 16,
+                          right: 16,
+                          child: _ZoomLensControl(
+                            scale: readerScale,
+                            onDecrease: () =>
+                                _setReaderScale(context, readerScale - .1),
+                            onReset: () => _setReaderScale(context, 1),
+                            onIncrease: () =>
+                                _setReaderScale(context, readerScale + .1),
+                          ),
+                        ),
+                      if (_focus)
+                        PositionedDirectional(
+                          top: MediaQuery.paddingOf(context).top + 8,
+                          start: 8,
+                          child: Material(
+                            color: Theme.of(context).colorScheme.surface
+                                .withValues(alpha: .9),
+                            shape: const CircleBorder(),
+                            child: IconButton(
+                              tooltip: 'إنهاء ملء الشاشة',
+                              onPressed: () => setState(() => _focus = false),
+                              icon: const Icon(Icons.fullscreen_exit),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  bottomNavigationBar: _focus ? null : _buildBottomBar(context),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -505,6 +507,82 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
   );
 }
 
+class _ZoomLensControl extends StatelessWidget {
+  const _ZoomLensControl({
+    required this.scale,
+    required this.onDecrease,
+    required this.onReset,
+    required this.onIncrease,
+  });
+
+  final double scale;
+  final VoidCallback onDecrease;
+  final VoidCallback onReset;
+  final VoidCallback onIncrease;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    final percent = (scale * 100).round();
+
+    return Material(
+      color: colors.surfaceMuted,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MishkatRadius.pill),
+        side: BorderSide(color: colors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Semantics(
+        label: 'حجم المصحف $percent بالمئة',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 12),
+            Icon(Icons.search_rounded, color: colors.primary, size: 19),
+            const SizedBox(width: 6),
+            Text(
+              'حجم الصفحة',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(width: 1, height: 22, color: colors.border),
+            IconButton(
+              tooltip: 'تصغير المصحف',
+              onPressed: scale > 1.005 ? onDecrease : null,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.remove_rounded),
+            ),
+            InkWell(
+              onTap: onReset,
+              borderRadius: BorderRadius.circular(MishkatRadius.pill),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+                child: Text(
+                  '$percent%',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: colors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'تكبير المصحف',
+              onPressed: scale < 1.87 ? onIncrease : null,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.add_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class MushafThemeColors {
   const MushafThemeColors._();
 
@@ -538,20 +616,25 @@ class MushafPage extends StatefulWidget {
 class _MushafPageState extends State<_MushafPage> {
   late final TransformationController _transformationController;
   bool _isZoomed = false;
+  Size _viewportSize = Size.zero;
+  double? _appliedScale;
 
   @override
   void initState() {
     super.initState();
     _transformationController = TransformationController()
       ..addListener(_onTransformationChanged);
-    _updateZoomState();
   }
 
   @override
   void didUpdateWidget(covariant _MushafPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.scale != widget.scale || oldWidget.isCurrent != widget.isCurrent) {
-      _updateZoomState();
+    if (oldWidget.scale != widget.scale) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _applyScale(widget.scale);
+      });
+    }
+    if (oldWidget.isCurrent != widget.isCurrent) {
       if (widget.isCurrent && !oldWidget.isCurrent) {
         widget.onZoomChanged?.call(_isZoomed);
       }
@@ -571,7 +654,7 @@ class _MushafPageState extends State<_MushafPage> {
 
   void _updateZoomState() {
     final matrixScale = _transformationController.value.getMaxScaleOnAxis();
-    final isZoomed = matrixScale > 1.05 || widget.scale > 1.05;
+    final isZoomed = matrixScale > 1.05;
     if (_isZoomed != isZoomed) {
       _isZoomed = isZoomed;
       if (widget.isCurrent) {
@@ -581,10 +664,34 @@ class _MushafPageState extends State<_MushafPage> {
   }
 
   void _resetZoom() {
-    if (_transformationController.value != Matrix4.identity()) {
-      _transformationController.value = Matrix4.identity();
-      _updateZoomState();
+    try {
+      context.read<QuranCubit>().setFontSize(32);
+      context.read<SettingsCubit>().setQuranFont(32);
+    } catch (_) {
+      _applyScale(1);
     }
+  }
+
+  void _applyScale(double requestedScale) {
+    if (_viewportSize.isEmpty) return;
+    final targetScale = requestedScale.clamp(1.0, 1.875).toDouble();
+    final currentMatrix = _transformationController.value;
+    final currentScale = currentMatrix.getMaxScaleOnAxis();
+    if ((currentScale - targetScale).abs() < .005 &&
+        _appliedScale == targetScale) {
+      return;
+    }
+
+    final center = _viewportSize.center(Offset.zero);
+    final sceneCenter = _transformationController.toScene(center);
+    final next = Matrix4.identity()
+      ..setEntry(0, 0, targetScale)
+      ..setEntry(1, 1, targetScale)
+      ..setEntry(0, 3, center.dx - targetScale * sceneCenter.dx)
+      ..setEntry(1, 3, center.dy - targetScale * sceneCenter.dy);
+    _appliedScale = targetScale;
+    _transformationController.value = next;
+    _updateZoomState();
   }
 
   @override
@@ -595,7 +702,11 @@ class _MushafPageState extends State<_MushafPage> {
         : null;
 
     final hasInteractionCubit =
-        context.findAncestorWidgetOfExactType<BlocProvider<MushafInteractionCubit>>() != null;
+        context
+            .findAncestorWidgetOfExactType<
+              BlocProvider<MushafInteractionCubit>
+            >() !=
+        null;
 
     Widget buildPageContent(
       AyahBounds? selectedAyah,
@@ -603,12 +714,14 @@ class _MushafPageState extends State<_MushafPage> {
       List<AyahBounds> bookmarkedAyahs,
       MushafLayoutRepository? layoutRepo,
     ) {
-      final effectiveLayoutRepo = layoutRepo ??
+      final effectiveLayoutRepo =
+          layoutRepo ??
           (MushafLayoutRepository.instance.isLoaded
               ? MushafLayoutRepository.instance
               : null);
       final pageGeom = effectiveLayoutRepo?.getPageGeometry(widget.page);
-      final viewBox = pageGeom?.viewBox ??
+      final viewBox =
+          pageGeom?.viewBox ??
           (widget.page <= 2
               ? const Rect.fromLTWH(-53.3109, -198.4777, 345, 550)
               : const Rect.fromLTWH(0, 0, 345, 550));
@@ -625,7 +738,9 @@ class _MushafPageState extends State<_MushafPage> {
             placeholderBuilder: (_) =>
                 const Center(child: CircularProgressIndicator()),
           ),
-          if (selectedAyah != null || playingAyah != null || bookmarkedAyahs.isNotEmpty)
+          if (selectedAyah != null ||
+              playingAyah != null ||
+              bookmarkedAyahs.isNotEmpty)
             MushafAyahOverlay(
               selectedAyah: selectedAyah,
               playingAyah: playingAyah,
@@ -633,7 +748,11 @@ class _MushafPageState extends State<_MushafPage> {
               viewBox: viewBox,
             ),
           if (visualRecallCubit != null)
-            BlocSelector<QuranVisualRecallCubit, QuranVisualRecallState, Set<int>>(
+            BlocSelector<
+              QuranVisualRecallCubit,
+              QuranVisualRecallState,
+              Set<int>
+            >(
               bloc: visualRecallCubit,
               selector: (state) => state.activeMaskedGlobals,
               builder: (context, activeMaskedGlobals) {
@@ -646,7 +765,9 @@ class _MushafPageState extends State<_MushafPage> {
                 if (geom == null) return const SizedBox.shrink();
 
                 final pageMaskedAyahs = geom.ayahs
-                    .where((ayah) => activeMaskedGlobals.contains(ayah.globalAyah))
+                    .where(
+                      (ayah) => activeMaskedGlobals.contains(ayah.globalAyah),
+                    )
                     .toList();
 
                 if (pageMaskedAyahs.isEmpty) return const SizedBox.shrink();
@@ -690,70 +811,87 @@ class _MushafPageState extends State<_MushafPage> {
           ? MushafThemeColors.darkBackground
           : MushafThemeColors.lightBackground,
       child: LayoutBuilder(
-        builder: (context, constraints) => InteractiveViewer(
-          transformationController: _transformationController,
-          constrained: false,
-          minScale: .8,
-          maxScale: 4,
-          boundaryMargin: _isZoomed
-              ? const EdgeInsets.all(40)
-              : EdgeInsets.zero,
-          child: SizedBox(
-            width: constraints.maxWidth * widget.scale.clamp(.82, 1.65),
-            height: constraints.maxHeight * widget.scale.clamp(.82, 1.65),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: hasInteractionCubit
-                  ? BlocSelector<MushafInteractionCubit, MushafInteractionState,
-                      ({AyahBounds? selectedAyah, AyahBounds? playingAyah})>(
-                      selector: (state) {
-                        final selected = state.selectedPage == widget.page
-                            ? state.selectedAyah
-                            : null;
-                        final playingGlobal = state.playingAyah;
-                        final layoutRepo = context
-                            .read<MushafInteractionCubit>()
-                            .layoutRepository;
-                        AyahBounds? playing;
-                        if (playingGlobal != null && layoutRepo.isLoaded) {
-                          final ayah = layoutRepo.getAyah(playingGlobal);
-                          if (ayah?.page == widget.page) {
-                            playing = ayah;
-                          }
-                        }
-                        return (
-                          selectedAyah: selected,
-                          playingAyah: playing,
-                        );
-                      },
-                      builder: (context, highlights) {
-                        final bookmarks = context.select<QuranCubit, List<QuranBookmark>>(
-                          (cubit) => cubit.state.getBookmarksForPage(widget.page),
-                        );
-                        final layoutRepo = context
-                            .read<MushafInteractionCubit>()
-                            .layoutRepository;
-                        final List<AyahBounds> bookmarkedBounds = [];
-                        if (bookmarks.isNotEmpty && layoutRepo.isLoaded) {
-                          for (final b in bookmarks) {
-                            final bounds = layoutRepo.getAyah(b.point.global);
-                            if (bounds != null && bounds.page == widget.page) {
-                              bookmarkedBounds.add(bounds);
+        builder: (context, constraints) {
+          final nextSize = Size(constraints.maxWidth, constraints.maxHeight);
+          if (_viewportSize != nextSize || _appliedScale == null) {
+            _viewportSize = nextSize;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _applyScale(widget.scale);
+            });
+          }
+          return InteractiveViewer(
+            transformationController: _transformationController,
+            constrained: false,
+            minScale: 1,
+            maxScale: 3,
+            boundaryMargin: const EdgeInsets.all(56),
+            panEnabled: _isZoomed,
+            onInteractionEnd: (_) {
+              _appliedScale = _transformationController.value
+                  .getMaxScaleOnAxis();
+              _updateZoomState();
+            },
+            child: SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: hasInteractionCubit
+                    ? BlocSelector<
+                        MushafInteractionCubit,
+                        MushafInteractionState,
+                        ({AyahBounds? selectedAyah, AyahBounds? playingAyah})
+                      >(
+                        selector: (state) {
+                          final selected = state.selectedPage == widget.page
+                              ? state.selectedAyah
+                              : null;
+                          final playingGlobal = state.playingAyah;
+                          final layoutRepo = context
+                              .read<MushafInteractionCubit>()
+                              .layoutRepository;
+                          AyahBounds? playing;
+                          if (playingGlobal != null && layoutRepo.isLoaded) {
+                            final ayah = layoutRepo.getAyah(playingGlobal);
+                            if (ayah?.page == widget.page) {
+                              playing = ayah;
                             }
                           }
-                        }
-                        return buildPageContent(
-                          highlights.selectedAyah,
-                          highlights.playingAyah,
-                          bookmarkedBounds,
-                          layoutRepo,
-                        );
-                      },
-                    )
-                  : buildPageContent(null, null, const [], null),
+                          return (selectedAyah: selected, playingAyah: playing);
+                        },
+                        builder: (context, highlights) {
+                          final bookmarks = context
+                              .select<QuranCubit, List<QuranBookmark>>(
+                                (cubit) => cubit.state.getBookmarksForPage(
+                                  widget.page,
+                                ),
+                              );
+                          final layoutRepo = context
+                              .read<MushafInteractionCubit>()
+                              .layoutRepository;
+                          final List<AyahBounds> bookmarkedBounds = [];
+                          if (bookmarks.isNotEmpty && layoutRepo.isLoaded) {
+                            for (final b in bookmarks) {
+                              final bounds = layoutRepo.getAyah(b.point.global);
+                              if (bounds != null &&
+                                  bounds.page == widget.page) {
+                                bookmarkedBounds.add(bounds);
+                              }
+                            }
+                          }
+                          return buildPageContent(
+                            highlights.selectedAyah,
+                            highlights.playingAyah,
+                            bookmarkedBounds,
+                            layoutRepo,
+                          );
+                        },
+                      )
+                    : buildPageContent(null, null, const [], null),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -773,9 +911,23 @@ class _ReaderBottomBar extends StatelessWidget {
           previous.currentPage != current.currentPage,
       builder: (context, state) {
         final playing = state.audioStatus == QuranAudioStatus.playing;
-        return Material(
-          color: Theme.of(context).colorScheme.surface,
-          elevation: 10,
+        final loading = state.audioStatus == QuranAudioStatus.loading;
+        final colors = context.mishkat;
+        return Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(MishkatRadius.lg),
+            ),
+            border: Border(top: BorderSide(color: colors.border)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .08),
+                blurRadius: 22,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
           child: SafeArea(
             top: false,
             child: Column(
@@ -783,38 +935,114 @@ class _ReaderBottomBar extends StatelessWidget {
               children: [
                 const QuranMiniPlayer(),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                   child: Row(
                     children: [
-                      IconButton(
+                      _ReaderDockButton(
                         tooltip: 'الصفحة السابقة',
                         onPressed: state.currentPage > 1
                             ? () => cubit.openPage(state.currentPage - 1)
                             : null,
-                        icon: const Icon(Icons.chevron_right),
+                        icon: Icons.chevron_right_rounded,
                       ),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onOptions,
-                          icon: const Icon(Icons.tune),
-                          label: Text('صفحة ${state.currentPage}'),
+                        child: Material(
+                          color: colors.surfaceMuted,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.md,
+                            ),
+                            side: BorderSide(color: colors.border),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: onOptions,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 7),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.menu_book_rounded,
+                                        size: 18,
+                                        color: colors.primary,
+                                      ),
+                                      const SizedBox(width: 7),
+                                      Text(
+                                        'صفحة ${state.currentPage}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                      Text(
+                                        '  من 604',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color: colors.textSecondary,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 7),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: state.currentPage / 604,
+                                      minHeight: 3,
+                                      backgroundColor: colors.border,
+                                      color: colors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      IconButton(
+                      const SizedBox(width: 10),
+                      _ReaderDockButton(
                         tooltip: 'الصفحة التالية',
                         onPressed: state.currentPage < 604
                             ? () => cubit.openPage(state.currentPage + 1)
                             : null,
-                        icon: const Icon(Icons.chevron_left),
+                        icon: Icons.chevron_left_rounded,
                       ),
-                      IconButton(
-                        tooltip: 'تشغيل التلاوة',
-                        onPressed: () => cubit.toggleAudio(
-                          continuous: settings.quranContinuous,
-                          autoScroll: settings.quranAutoScroll,
-                        ),
-                        icon: Icon(
-                          playing ? Icons.pause_circle : Icons.play_circle,
+                      const SizedBox(width: 10),
+                      SizedBox.square(
+                        dimension: 52,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            shape: const CircleBorder(),
+                          ),
+                          onPressed: loading
+                              ? null
+                              : () => cubit.toggleAudio(
+                                  continuous: settings.quranContinuous,
+                                  autoScroll: settings.quranAutoScroll,
+                                ),
+                          child: loading
+                              ? const SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                  ),
+                                )
+                              : Icon(
+                                  playing
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: 28,
+                                ),
                         ),
                       ),
                     ],
@@ -825,6 +1053,33 @@ class _ReaderBottomBar extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ReaderDockButton extends StatelessWidget {
+  const _ReaderDockButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.icon,
+  });
+
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Material(
+      color: colors.surfaceMuted,
+      shape: CircleBorder(side: BorderSide(color: colors.border)),
+      clipBehavior: Clip.antiAlias,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon),
+      ),
     );
   }
 }
@@ -860,6 +1115,7 @@ class _ReaderOptionsSheetState extends State<_ReaderOptionsSheet> {
         return BlocBuilder<SettingsCubit, SettingsState>(
           builder: (context, settingsState) {
             final settings = settingsState.settings;
+            final effectiveFontSize = quran.fontSize.clamp(32.0, 60.0);
             return SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -897,7 +1153,7 @@ class _ReaderOptionsSheetState extends State<_ReaderOptionsSheet> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'حجم المصحف · ${(quran.fontSize / 32 * 100).round()}%',
+                    'حجم المصحف · ${(effectiveFontSize / 32 * 100).round()}%',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   Row(
@@ -905,9 +1161,9 @@ class _ReaderOptionsSheetState extends State<_ReaderOptionsSheet> {
                       const Text('أ', style: TextStyle(fontSize: 14)),
                       Expanded(
                         child: Slider(
-                          min: 20,
+                          min: 32,
                           max: 60,
-                          value: quran.fontSize,
+                          value: effectiveFontSize,
                           onChanged: (value) {
                             context.read<QuranCubit>().setFontSize(value);
                             context.read<SettingsCubit>().setQuranFont(value);
@@ -921,7 +1177,6 @@ class _ReaderOptionsSheetState extends State<_ReaderOptionsSheet> {
                     spacing: 8,
                     children: [
                       for (final preset in const [
-                        (24, 'صغير'),
                         (32, 'ملائم'),
                         (44, 'كبير'),
                         (60, 'كبير جدًا'),

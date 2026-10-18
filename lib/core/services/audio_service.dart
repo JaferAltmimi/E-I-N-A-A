@@ -33,11 +33,9 @@ class QuranAudioUrlBuilder {
 }
 
 class QuranAudioService {
-  QuranAudioService({
-    AudioPlayer? player,
-    QuranAudioCacheService? cacheService,
-  })  : _player = player ?? AudioPlayer(),
-        _cache = cacheService ?? QuranAudioCacheService();
+  QuranAudioService({AudioPlayer? player, QuranAudioCacheService? cacheService})
+    : _player = player ?? AudioPlayer(),
+      _cache = cacheService ?? QuranAudioCacheService();
 
   final AudioPlayer _player;
   final QuranAudioCacheService _cache;
@@ -78,7 +76,10 @@ class QuranAudioService {
       try {
         await _player.setFilePath(localFile.path);
         if (requestId != _activeRequestId) return;
-        await _player.play();
+        // Playback completion is reported by playerStateStream. Do not keep
+        // this command pending for the full Ayah duration; the QuranCubit
+        // needs to be free to prepare and start the following Ayah.
+        unawaited(_player.play());
         return;
       } catch (_) {
         // If local playback failed due to unexpected corruption, fall through to stream
@@ -104,7 +105,7 @@ class QuranAudioService {
 
     await _player.setUrl(url);
     if (requestId != _activeRequestId) return;
-    await _player.play();
+    unawaited(_player.play());
 
     // 4. Trigger background cache download
     unawaited(
@@ -117,7 +118,7 @@ class QuranAudioService {
   }
 
   Future<void> pause() => _player.pause();
-  Future<void> resume() => _player.play();
+  Future<void> resume() async => unawaited(_player.play());
   Future<void> stop() async {
     _activeRequestId++;
     await _player.stop();
@@ -150,7 +151,7 @@ extension QuranAudioStreamExtension on QuranAudioService {
       }
       await _player.setUrl(url);
       if (requestId != _activeRequestId) return;
-      await _player.play();
+      unawaited(_player.play());
     } on NoSuchMethodError {
       // In widget and unit tests where a mock/fake implements QuranAudioService
       // without instantiating concrete private fields.

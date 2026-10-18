@@ -29,7 +29,9 @@ class QuranCubit extends Cubit<QuranState> {
           state.copyWith(
             audioStatus: QuranAudioStatus.idle,
             audioGlobalAyah: null,
-            repeatState: const AudioRepeatState(status: AudioRepeatStatus.completed),
+            repeatState: const AudioRepeatState(
+              status: AudioRepeatStatus.completed,
+            ),
           ),
         );
       },
@@ -47,6 +49,7 @@ class QuranCubit extends Cubit<QuranState> {
   String reciter;
   bool _continuous = true;
   bool autoScroll;
+  bool _advancingContinuously = false;
 
   QuranRepository get repository => _repository;
   QuranAudioService get audioService => _audio;
@@ -149,7 +152,8 @@ class QuranCubit extends Cubit<QuranState> {
   Future<void> openPage(int page, {QuranPoint? point}) async {
     final safePage = page.clamp(1, 604);
     final data = state.data;
-    final lastRead = point ??
+    final lastRead =
+        point ??
         (data != null
             ? data.pointForGlobal(data.page(safePage).first.global)
             : state.lastRead);
@@ -174,10 +178,12 @@ class QuranCubit extends Cubit<QuranState> {
     final juz = data.juz[safeJuz - 1];
     final global = data.globalFor(juz.surah, juz.ayah);
     final page = data.pageForGlobal(global);
-    emit(state.copyWith(
-      currentPage: page,
-      lastRead: QuranPoint(surah: juz.surah, ayah: juz.ayah, global: global),
-    ));
+    emit(
+      state.copyWith(
+        currentPage: page,
+        lastRead: QuranPoint(surah: juz.surah, ayah: juz.ayah, global: global),
+      ),
+    );
     await _persist();
   }
 
@@ -193,8 +199,9 @@ class QuranCubit extends Cubit<QuranState> {
     final data = state.data;
     if (data == null) return;
     final list = List<QuranBookmark>.from(state.bookmarks);
-    final existingIndex =
-        list.indexWhere((item) => item.point.global == globalAyah);
+    final existingIndex = list.indexWhere(
+      (item) => item.point.global == globalAyah,
+    );
     if (existingIndex >= 0) {
       list.removeAt(existingIndex);
     } else {
@@ -267,8 +274,11 @@ class QuranCubit extends Cubit<QuranState> {
     await _play(global, autoScroll: autoScroll);
   }
 
-  Future<void> playAyah(int global,
-      {bool continuous = true, bool? autoScroll}) async {
+  Future<void> playAyah(
+    int global, {
+    bool continuous = true,
+    bool? autoScroll,
+  }) async {
     _continuous = continuous;
     _repeatController.setContinuous(continuous);
     if (autoScroll != null) this.autoScroll = autoScroll;
@@ -299,17 +309,11 @@ class QuranCubit extends Cubit<QuranState> {
       ),
     );
     try {
-      await _audio.playAyah(
-        reciter: reciter,
-        globalAyah: safe,
-      );
+      await _audio.playAyah(reciter: reciter, globalAyah: safe);
     } on QuranAudioOfflineException catch (e) {
       if (requestId != _playbackRequestId) return;
       emit(
-        state.copyWith(
-          audioStatus: QuranAudioStatus.failure,
-          error: e.message,
-        ),
+        state.copyWith(audioStatus: QuranAudioStatus.failure, error: e.message),
       );
     } on Object {
       if (requestId != _playbackRequestId) return;
@@ -335,7 +339,8 @@ class QuranCubit extends Cubit<QuranState> {
           audioStatus: QuranAudioStatus.failure,
           activeStation: station,
           audioGlobalAyah: null,
-          error: station.notes ??
+          error:
+              station.notes ??
               'رابط البث غير معتمد حالياً. في انتظار اعتماد رابط رسمي موثق.',
         ),
       );
@@ -356,10 +361,7 @@ class QuranCubit extends Cubit<QuranState> {
     } on QuranAudioOfflineException catch (e) {
       if (requestId != _playbackRequestId) return;
       emit(
-        state.copyWith(
-          audioStatus: QuranAudioStatus.failure,
-          error: e.message,
-        ),
+        state.copyWith(audioStatus: QuranAudioStatus.failure, error: e.message),
       );
     } on Object {
       if (requestId != _playbackRequestId) return;
@@ -423,7 +425,8 @@ class QuranCubit extends Cubit<QuranState> {
       _repeatController.next();
       return;
     }
-    final current = state.audioGlobalAyah ??
+    final current =
+        state.audioGlobalAyah ??
         state.data?.page(state.currentPage).first.global ??
         1;
     if (current < 6236) {
@@ -438,7 +441,8 @@ class QuranCubit extends Cubit<QuranState> {
       _repeatController.previous();
       return;
     }
-    final current = state.audioGlobalAyah ??
+    final current =
+        state.audioGlobalAyah ??
         state.data?.page(state.currentPage).first.global ??
         1;
     if (current > 1) {
@@ -479,7 +483,8 @@ class QuranCubit extends Cubit<QuranState> {
     bool? autoScroll,
   }) async {
     if (queue.isEmpty) return;
-    final config = repeatConfig ??
+    final config =
+        repeatConfig ??
         AudioRepeatConfig(
           mode: AudioRepeatMode.rangeLoop,
           startGlobalAyah: queue.first,
@@ -509,8 +514,11 @@ class QuranCubit extends Cubit<QuranState> {
   void _onPlayerState(PlayerState player) {
     if (isClosed) return;
     if (player.processingState == ProcessingState.idle) {
-      if (state.repeatState.isDelaying) {
-        // Holding during delay interval; do not wipe audioGlobalAyah
+      if (state.repeatState.isDelaying ||
+          _advancingContinuously ||
+          state.audioStatus == QuranAudioStatus.loading) {
+        // just_audio briefly reports idle while replacing the completed Ayah
+        // source. Keep the active Ayah intact until the next source is ready.
         return;
       }
       emit(
@@ -533,7 +541,13 @@ class QuranCubit extends Cubit<QuranState> {
       if (state.repeatConfig.mode != AudioRepeatMode.none) {
         _repeatController.onAyahPlaybackFinished();
       } else if (_continuous && (state.audioGlobalAyah ?? 6236) < 6236) {
-        unawaited(nextAudioAyah(autoScroll: autoScroll));
+        if (_advancingContinuously) return;
+        _advancingContinuously = true;
+        unawaited(
+          nextAudioAyah(autoScroll: autoScroll).whenComplete(() {
+            _advancingContinuously = false;
+          }),
+        );
       } else {
         emit(
           state.copyWith(
@@ -574,10 +588,10 @@ class QuranCubit extends Cubit<QuranState> {
   }
 
   Future<void> _persist() => _storage.writeMap('quran', {
-        'currentPage': state.currentPage,
-        'lastRead': state.lastRead?.toJson(),
-        'bookmarks': state.bookmarks.map((item) => item.toJson()).toList(),
-      });
+    'currentPage': state.currentPage,
+    'lastRead': state.lastRead?.toJson(),
+    'bookmarks': state.bookmarks.map((item) => item.toJson()).toList(),
+  });
 
   @override
   Future<void> close() async {

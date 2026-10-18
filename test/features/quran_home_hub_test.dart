@@ -361,6 +361,9 @@ void main() {
 
         // Verify production QuranReaderPage is opened
         expect(find.byType(QuranReaderPage), findsOneWidget);
+        expect(find.text('حجم الصفحة'), findsOneWidget);
+        expect(find.byTooltip('تكبير المصحف'), findsOneWidget);
+        expect(find.byTooltip('تصغير المصحف'), findsOneWidget);
 
         quranCubit.close();
       },

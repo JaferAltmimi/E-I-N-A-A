@@ -29,6 +29,7 @@ class ControllableQuranAudioService implements QuranAudioService {
   bool stopped = false;
   final List<Duration> seekCalls = [];
   bool simulateErrorOnPlay = false;
+  bool emitIdleBeforeReady = false;
 
   @override
   Stream<PlayerState> get playerState => _stateController.stream;
@@ -83,6 +84,10 @@ class ControllableQuranAudioService implements QuranAudioService {
     lastGlobalAyah = globalAyah;
     if (simulateErrorOnPlay) {
       throw Exception('Simulated network error');
+    }
+    if (emitIdleBeforeReady) {
+      emitState(PlayerState(false, ProcessingState.idle));
+      await Future<void>.delayed(Duration.zero);
     }
     emitState(PlayerState(true, ProcessingState.ready));
   }
@@ -231,7 +236,11 @@ class FakeQuranRepository implements QuranRepository {
   Future<QuranData> load() async => data;
 
   @override
-  List<QuranSearchResult> search(QuranData data, String query, {int limit = 50}) => const [];
+  List<QuranSearchResult> search(
+    QuranData data,
+    String query, {
+    int limit = 50,
+  }) => const [];
 }
 
 void main() {
@@ -269,26 +278,46 @@ void main() {
       expect(quranCubit.reciter, 'ar.alafasy');
     });
 
-    test('Play single Ayah starts playback and sets state to playing', () async {
-      await quranCubit.load();
-      await quranCubit.playAyah(1, continuous: false);
+    test(
+      'Play single Ayah starts playback and sets state to playing',
+      () async {
+        await quranCubit.load();
+        await quranCubit.playAyah(1, continuous: false);
 
-      expect(audioService.lastReciter, 'ar.alafasy');
-      expect(audioService.lastGlobalAyah, 1);
-      expect(quranCubit.state.audioStatus, QuranAudioStatus.playing);
-      expect(quranCubit.state.audioGlobalAyah, 1);
-    });
+        expect(audioService.lastReciter, 'ar.alafasy');
+        expect(audioService.lastGlobalAyah, 1);
+        expect(quranCubit.state.audioStatus, QuranAudioStatus.playing);
+        expect(quranCubit.state.audioGlobalAyah, 1);
+      },
+    );
 
-    test('Continuous playback auto-advances from Ayah 1 to Ayah 2 upon completion', () async {
+    test(
+      'Continuous playback auto-advances from Ayah 1 to Ayah 2 upon completion',
+      () async {
+        await quranCubit.load();
+        await quranCubit.playAyah(1, continuous: true);
+        expect(quranCubit.state.audioGlobalAyah, 1);
+
+        // Simulate completion of Ayah 1
+        audioService.emitState(PlayerState(false, ProcessingState.completed));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(quranCubit.state.audioGlobalAyah, 2);
+        expect(audioService.lastGlobalAyah, 2);
+      },
+    );
+
+    test('Transient idle while loading the next Ayah does not stop continuous playback', () async {
       await quranCubit.load();
       await quranCubit.playAyah(1, continuous: true);
-      expect(quranCubit.state.audioGlobalAyah, 1);
+      audioService.emitIdleBeforeReady = true;
 
-      // Simulate completion of Ayah 1
       audioService.emitState(PlayerState(false, ProcessingState.completed));
+      await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
 
       expect(quranCubit.state.audioGlobalAyah, 2);
+      expect(quranCubit.state.audioStatus, QuranAudioStatus.playing);
       expect(audioService.lastGlobalAyah, 2);
     });
 
@@ -337,28 +366,34 @@ void main() {
       expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
     });
 
-    test('Disabling continuous mode stops after single Ayah completion', () async {
-      await quranCubit.load();
-      await quranCubit.playAyah(3, continuous: false);
-      expect(quranCubit.state.audioGlobalAyah, 3);
+    test(
+      'Disabling continuous mode stops after single Ayah completion',
+      () async {
+        await quranCubit.load();
+        await quranCubit.playAyah(3, continuous: false);
+        expect(quranCubit.state.audioGlobalAyah, 3);
 
-      audioService.emitState(PlayerState(false, ProcessingState.completed));
-      await Future<void>.delayed(Duration.zero);
+        audioService.emitState(PlayerState(false, ProcessingState.completed));
+        await Future<void>.delayed(Duration.zero);
 
-      expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
-      expect(audioService.playAyahCalls, 1);
-    });
+        expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
+        expect(audioService.playAyahCalls, 1);
+      },
+    );
 
-    test('Changing reciter while playing reloads active Ayah with new reciter', () async {
-      await quranCubit.load();
-      await quranCubit.playAyah(5, continuous: true);
-      expect(audioService.lastReciter, 'ar.alafasy');
+    test(
+      'Changing reciter while playing reloads active Ayah with new reciter',
+      () async {
+        await quranCubit.load();
+        await quranCubit.playAyah(5, continuous: true);
+        expect(audioService.lastReciter, 'ar.alafasy');
 
-      quranCubit.updateReciter('ar.husary', restartIfPlaying: true);
-      expect(quranCubit.reciter, 'ar.husary');
-      expect(audioService.lastReciter, 'ar.husary');
-      expect(audioService.lastGlobalAyah, 5);
-    });
+        quranCubit.updateReciter('ar.husary', restartIfPlaying: true);
+        expect(quranCubit.reciter, 'ar.husary');
+        expect(audioService.lastReciter, 'ar.husary');
+        expect(audioService.lastGlobalAyah, 5);
+      },
+    );
 
     test('Network error gracefully sets audioStatus to failure with friendly error', () async {
       await quranCubit.load();
@@ -380,9 +415,7 @@ void main() {
         page: 42,
         globalAyah: 262,
         bounds: Rect.fromLTWH(10, 20, 200, 30),
-        segments: [
-          AyahRectSegment(Rect.fromLTWH(10, 20, 200, 30)),
-        ],
+        segments: [AyahRectSegment(Rect.fromLTWH(10, 20, 200, 30))],
       );
 
       interactionCubit.selectAyah(selected);
@@ -390,106 +423,116 @@ void main() {
 
       expect(interactionCubit.state.selectedAyah?.globalAyah, 262);
       expect(interactionCubit.state.playingAyah, 263);
-      expect(interactionCubit.state.selectedAyah!.globalAyah != interactionCubit.state.playingAyah, isTrue);
+      expect(
+        interactionCubit.state.selectedAyah!.globalAyah !=
+            interactionCubit.state.playingAyah,
+        isTrue,
+      );
 
       interactionCubit.close();
     });
 
-    testWidgets('MushafAyahOverlay renders distinct highlights for selection vs playback', (tester) async {
-      const selected = AyahBounds(
-        surah: 1,
-        ayah: 1,
-        page: 1,
-        globalAyah: 1,
-        bounds: Rect.fromLTWH(10, 10, 100, 20),
-        segments: [
-          AyahRectSegment(Rect.fromLTWH(10, 10, 100, 20)),
-        ],
-      );
+    testWidgets(
+      'MushafAyahOverlay renders distinct highlights for selection vs playback',
+      (tester) async {
+        const selected = AyahBounds(
+          surah: 1,
+          ayah: 1,
+          page: 1,
+          globalAyah: 1,
+          bounds: Rect.fromLTWH(10, 10, 100, 20),
+          segments: [AyahRectSegment(Rect.fromLTWH(10, 10, 100, 20))],
+        );
 
-      const playing = AyahBounds(
-        surah: 1,
-        ayah: 2,
-        page: 1,
-        globalAyah: 2,
-        bounds: Rect.fromLTWH(10, 40, 100, 20),
-        segments: [
-          AyahRectSegment(Rect.fromLTWH(10, 40, 100, 20)),
-        ],
-      );
+        const playing = AyahBounds(
+          surah: 1,
+          ayah: 2,
+          page: 1,
+          globalAyah: 2,
+          bounds: Rect.fromLTWH(10, 40, 100, 20),
+          segments: [AyahRectSegment(Rect.fromLTWH(10, 40, 100, 20))],
+        );
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MushafAyahOverlay(
-              selectedAyah: selected,
-              playingAyah: playing,
-              viewBox: Rect.fromLTWH(0, 0, 345, 550),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: MushafAyahOverlay(
+                selectedAyah: selected,
+                playingAyah: playing,
+                viewBox: Rect.fromLTWH(0, 0, 345, 550),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final overlayCustomPaint = find.descendant(
-        of: find.byType(MushafAyahOverlay),
-        matching: find.byType(CustomPaint),
-      );
-      expect(overlayCustomPaint, findsOneWidget);
-      final customPaint = tester.widget<CustomPaint>(overlayCustomPaint);
-      final painter = customPaint.painter as MushafAyahHighlightPainter;
+        final overlayCustomPaint = find.descendant(
+          of: find.byType(MushafAyahOverlay),
+          matching: find.byType(CustomPaint),
+        );
+        expect(overlayCustomPaint, findsOneWidget);
+        final customPaint = tester.widget<CustomPaint>(overlayCustomPaint);
+        final painter = customPaint.painter as MushafAyahHighlightPainter;
 
-      expect(painter.selectedAyah, selected);
-      expect(painter.playingAyah, playing);
-      expect(painter.selectedAyah!.globalAyah != painter.playingAyah!.globalAyah, isTrue);
-    });
+        expect(painter.selectedAyah, selected);
+        expect(painter.playingAyah, playing);
+        expect(
+          painter.selectedAyah!.globalAyah != painter.playingAyah!.globalAyah,
+          isTrue,
+        );
+      },
+    );
 
-    testWidgets('MushafAyahOverlay renders unified highlight when selected == playing', (tester) async {
-      const active = AyahBounds(
-        surah: 1,
-        ayah: 1,
-        page: 1,
-        globalAyah: 1,
-        bounds: Rect.fromLTWH(10, 10, 100, 20),
-        segments: [
-          AyahRectSegment(Rect.fromLTWH(10, 10, 100, 20)),
-        ],
-      );
+    testWidgets(
+      'MushafAyahOverlay renders unified highlight when selected == playing',
+      (tester) async {
+        const active = AyahBounds(
+          surah: 1,
+          ayah: 1,
+          page: 1,
+          globalAyah: 1,
+          bounds: Rect.fromLTWH(10, 10, 100, 20),
+          segments: [AyahRectSegment(Rect.fromLTWH(10, 10, 100, 20))],
+        );
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MushafAyahOverlay(
-              selectedAyah: active,
-              playingAyah: active,
-              viewBox: Rect.fromLTWH(0, 0, 345, 550),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: MushafAyahOverlay(
+                selectedAyah: active,
+                playingAyah: active,
+                viewBox: Rect.fromLTWH(0, 0, 345, 550),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final overlayCustomPaint = find.descendant(
-        of: find.byType(MushafAyahOverlay),
-        matching: find.byType(CustomPaint),
-      );
-      expect(overlayCustomPaint, findsOneWidget);
-      final customPaint = tester.widget<CustomPaint>(overlayCustomPaint);
-      final painter = customPaint.painter as MushafAyahHighlightPainter;
+        final overlayCustomPaint = find.descendant(
+          of: find.byType(MushafAyahOverlay),
+          matching: find.byType(CustomPaint),
+        );
+        expect(overlayCustomPaint, findsOneWidget);
+        final customPaint = tester.widget<CustomPaint>(overlayCustomPaint);
+        final painter = customPaint.painter as MushafAyahHighlightPainter;
 
-      expect(painter.selectedAyah!.globalAyah == painter.playingAyah!.globalAyah, isTrue);
-    });
+        expect(
+          painter.selectedAyah!.globalAyah == painter.playingAyah!.globalAyah,
+          isTrue,
+        );
+      },
+    );
   });
 
   group('C. Quran Mini Player Widget UI & Controls', () {
-    testWidgets('Mini Player collapses to shrink when audio is idle', (tester) async {
+    testWidgets('Mini Player collapses to shrink when audio is idle', (
+      tester,
+    ) async {
       await quranCubit.load();
 
       await tester.pumpWidget(
         MaterialApp(
           home: BlocProvider.value(
             value: quranCubit,
-            child: const Scaffold(
-              body: QuranMiniPlayer(),
-            ),
+            child: const Scaffold(body: QuranMiniPlayer()),
           ),
         ),
       );
@@ -499,30 +542,31 @@ void main() {
       expect(find.byIcon(Icons.skip_next_rounded), findsNothing);
     });
 
-    testWidgets('Mini Player displays reciter name, Ayah context, and buttons when playing', (tester) async {
-      await quranCubit.load();
-      await quranCubit.playAyah(1, continuous: true);
+    testWidgets(
+      'Mini Player displays reciter name, Ayah context, and buttons when playing',
+      (tester) async {
+        await quranCubit.load();
+        await quranCubit.playAyah(1, continuous: true);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: BlocProvider.value(
-            value: quranCubit,
-            child: const Scaffold(
-              body: QuranMiniPlayer(),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: BlocProvider.value(
+              value: quranCubit,
+              child: const Scaffold(body: QuranMiniPlayer()),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      expect(find.text('مشاري العفاسي'), findsOneWidget);
-      expect(find.text('سورة الفاتحة · الآية 1'), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
-    });
+        expect(find.text('مشاري العفاسي'), findsOneWidget);
+        expect(find.text('سورة الفاتحة · الآية 1'), findsOneWidget);
+        expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      },
+    );
 
     testWidgets('Tapping pause in Mini Player pauses audio', (tester) async {
       await quranCubit.load();
@@ -532,9 +576,7 @@ void main() {
         MaterialApp(
           home: BlocProvider.value(
             value: quranCubit,
-            child: const Scaffold(
-              body: QuranMiniPlayer(),
-            ),
+            child: const Scaffold(body: QuranMiniPlayer()),
           ),
         ),
       );
@@ -546,104 +588,112 @@ void main() {
       expect(audioService.paused, isTrue);
     });
 
-    testWidgets('Tapping stop in Mini Player stops playback and collapses widget', (tester) async {
-      await quranCubit.load();
-      await quranCubit.playAyah(1, continuous: true);
+    testWidgets(
+      'Tapping stop in Mini Player stops playback and collapses widget',
+      (tester) async {
+        await quranCubit.load();
+        await quranCubit.playAyah(1, continuous: true);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: BlocProvider.value(
-            value: quranCubit,
-            child: const Scaffold(
-              body: QuranMiniPlayer(),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: BlocProvider.value(
+              value: quranCubit,
+              child: const Scaffold(body: QuranMiniPlayer()),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      await tester.runAsync(() async {
-        await tester.tap(find.byIcon(Icons.close_rounded));
-      });
-      await tester.pump();
+        await tester.runAsync(() async {
+          await tester.tap(find.byIcon(Icons.close_rounded));
+        });
+        await tester.pump();
 
-      expect(audioService.stopped, isTrue);
-      expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
-      expect(find.text('مشاري العفاسي'), findsNothing);
-    });
+        expect(audioService.stopped, isTrue);
+        expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
+        expect(find.text('مشاري العفاسي'), findsNothing);
+      },
+    );
 
-    testWidgets('Scrubbing progress bar triggers seek without full cubit rebuilds', (tester) async {
-      await quranCubit.load();
-      await quranCubit.playAyah(1, continuous: true);
-      audioService.emitDuration(const Duration(seconds: 30));
-      audioService.emitPosition(const Duration(seconds: 10));
+    testWidgets(
+      'Scrubbing progress bar triggers seek without full cubit rebuilds',
+      (tester) async {
+        await quranCubit.load();
+        await quranCubit.playAyah(1, continuous: true);
+        audioService.emitDuration(const Duration(seconds: 30));
+        audioService.emitPosition(const Duration(seconds: 10));
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: BlocProvider.value(
-            value: quranCubit,
-            child: const Scaffold(
-              body: QuranMiniPlayer(),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: BlocProvider.value(
+              value: quranCubit,
+              child: const Scaffold(body: QuranMiniPlayer()),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      expect(find.byType(Slider), findsOneWidget);
-      final slider = find.byType(Slider);
-      await tester.tap(slider);
-      await tester.pump();
+        expect(find.byType(Slider), findsOneWidget);
+        final slider = find.byType(Slider);
+        await tester.tap(slider);
+        await tester.pump();
 
-      expect(audioService.seekCalls.isNotEmpty, isTrue);
-    });
+        expect(audioService.seekCalls.isNotEmpty, isTrue);
+      },
+    );
   });
 
   group('D. Responsive Layout & Light/Dark Theme Verification', () {
     for (final width in [320.0, 390.0, 768.0, 1024.0]) {
       for (final isDark in [false, true]) {
-        testWidgets('Responsive Mini Player at ${width}px (${isDark ? 'Dark' : 'Light'}) renders without overflow', (tester) async {
-          tester.view.physicalSize = Size(width, 800);
-          tester.view.devicePixelRatio = 1.0;
-          addTearDown(() => tester.view.resetPhysicalSize());
+        testWidgets(
+          'Responsive Mini Player at ${width}px (${isDark ? 'Dark' : 'Light'}) renders without overflow',
+          (tester) async {
+            tester.view.physicalSize = Size(width, 800);
+            tester.view.devicePixelRatio = 1.0;
+            addTearDown(() => tester.view.resetPhysicalSize());
 
-          await quranCubit.load();
-          await quranCubit.playAyah(1, continuous: true);
+            await quranCubit.load();
+            await quranCubit.playAyah(1, continuous: true);
 
-          await tester.pumpWidget(
-            MaterialApp(
-              theme: isDark ? ThemeData.dark() : ThemeData.light(),
-              home: BlocProvider.value(
-                value: quranCubit,
-                child: const Scaffold(
-                  body: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: QuranMiniPlayer(),
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: isDark ? ThemeData.dark() : ThemeData.light(),
+                home: BlocProvider.value(
+                  value: quranCubit,
+                  child: const Scaffold(
+                    body: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: QuranMiniPlayer(),
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-          await tester.pump();
+            );
+            await tester.pump();
 
-          expect(find.byType(QuranMiniPlayer), findsOneWidget);
-          expect(tester.takeException(), isNull);
-        });
+            expect(find.byType(QuranMiniPlayer), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          },
+        );
       }
     }
   });
 
   group('E. Concurrency, Race Condition & Rapid Skip Safety', () {
-    test('Rapid consecutive calls to playAyah only play the latest requested Ayah', () async {
-      await quranCubit.load();
-      final f1 = quranCubit.playAyah(10, continuous: true);
-      final f2 = quranCubit.playAyah(20, continuous: true);
-      final f3 = quranCubit.playAyah(30, continuous: true);
-      await Future.wait([f1, f2, f3]);
+    test(
+      'Rapid consecutive calls to playAyah only play the latest requested Ayah',
+      () async {
+        await quranCubit.load();
+        final f1 = quranCubit.playAyah(10, continuous: true);
+        final f2 = quranCubit.playAyah(20, continuous: true);
+        final f3 = quranCubit.playAyah(30, continuous: true);
+        await Future.wait([f1, f2, f3]);
 
-      expect(quranCubit.state.audioGlobalAyah, 30);
-      expect(audioService.lastGlobalAyah, 30);
-    });
+        expect(quranCubit.state.audioGlobalAyah, 30);
+        expect(audioService.lastGlobalAyah, 30);
+      },
+    );
 
     test('Seeking audio forwards duration to service seek API', () async {
       await quranCubit.load();

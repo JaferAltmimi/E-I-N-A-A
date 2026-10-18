@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -106,9 +107,7 @@ QuranData createDummyQuranData() {
 
   return QuranData(
     chapters: [fatiha, baqarah],
-    juz: const [
-      JuzStart(number: 1, surah: 1, ayah: 1),
-    ],
+    juz: const [JuzStart(number: 1, surah: 1, ayah: 1)],
     pages: const [
       MushafPageInfo(
         page: 1,
@@ -153,7 +152,10 @@ class DummyAudioService implements QuranAudioService {
   Duration? get duration => null;
 
   @override
-  Future<void> playAyah({required String reciter, required int globalAyah}) async {}
+  Future<void> playAyah({
+    required String reciter,
+    required int globalAyah,
+  }) async {}
 
   @override
   Future<void> pause() async {}
@@ -185,12 +187,30 @@ class DummyQuranRepository extends QuranRepository {
 void main() {
   group('Q8 — Domain Models & Serialization', () {
     test('MemorizationStatus parsing, fallback, and labels', () {
-      expect(MemorizationStatus.fromString('memorized'), MemorizationStatus.memorized);
-      expect(MemorizationStatus.fromString('learning'), MemorizationStatus.learning);
-      expect(MemorizationStatus.fromString('needsRevision'), MemorizationStatus.needsRevision);
-      expect(MemorizationStatus.fromString('notStarted'), MemorizationStatus.notStarted);
-      expect(MemorizationStatus.fromString('unknown_state'), MemorizationStatus.notStarted);
-      expect(MemorizationStatus.fromString(null), MemorizationStatus.notStarted);
+      expect(
+        MemorizationStatus.fromString('memorized'),
+        MemorizationStatus.memorized,
+      );
+      expect(
+        MemorizationStatus.fromString('learning'),
+        MemorizationStatus.learning,
+      );
+      expect(
+        MemorizationStatus.fromString('needsRevision'),
+        MemorizationStatus.needsRevision,
+      );
+      expect(
+        MemorizationStatus.fromString('notStarted'),
+        MemorizationStatus.notStarted,
+      );
+      expect(
+        MemorizationStatus.fromString('unknown_state'),
+        MemorizationStatus.notStarted,
+      );
+      expect(
+        MemorizationStatus.fromString(null),
+        MemorizationStatus.notStarted,
+      );
 
       expect(MemorizationStatus.memorized.label, 'تم الحفظ');
       expect(MemorizationStatus.memorized.arabicLabel, 'تم الحفظ');
@@ -229,30 +249,33 @@ void main() {
       expect(clamped.mistakeCount, 0);
     });
 
-    test('MemorizationPlan properties, estimated days, and completion status', () {
-      final now = DateTime(2026, 10, 4, 10, 0);
-      final plan = MemorizationPlan(
-        id: 'plan_1',
-        title: 'حفظ سورة الفاتحة',
-        surah: 1,
-        startGlobalAyah: 1,
-        endGlobalAyah: 7,
-        dailyTarget: 3,
-        createdAt: now,
-      );
+    test(
+      'MemorizationPlan properties, estimated days, and completion status',
+      () {
+        final now = DateTime(2026, 10, 4, 10, 0);
+        final plan = MemorizationPlan(
+          id: 'plan_1',
+          title: 'حفظ سورة الفاتحة',
+          surah: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 7,
+          dailyTarget: 3,
+          createdAt: now,
+        );
 
-      expect(plan.totalAyahs, 7);
-      expect(plan.estimatedDays, 3); // (7 / 3).ceil() = 3
-      expect(plan.isCompleted, false);
+        expect(plan.totalAyahs, 7);
+        expect(plan.estimatedDays, 3); // (7 / 3).ceil() = 3
+        expect(plan.isCompleted, false);
 
-      final completedPlan = plan.copyWith(completedAt: now);
-      expect(completedPlan.isCompleted, true);
+        final completedPlan = plan.copyWith(completedAt: now);
+        expect(completedPlan.isCompleted, true);
 
-      final json = plan.toJson();
-      final restored = MemorizationPlan.fromJson(json);
-      expect(restored, plan);
-      expect(restored.totalAyahs, 7);
-    });
+        final json = plan.toJson();
+        final restored = MemorizationPlan.fromJson(json);
+        expect(restored, plan);
+        expect(restored.totalAyahs, 7);
+      },
+    );
 
     test('MemorizationSession progress, finishes, and currentGlobalAyah', () {
       final session = MemorizationSession(
@@ -321,30 +344,43 @@ void main() {
       expect(loaded.sessionResume?.currentIndex, 1);
     });
 
-    test('Resiliently ignores corrupted records and parses valid ones', () async {
-      await storage.writeMap(QuranMemorizationRepository.storageKey, {
-        'version': 1,
-        'plans': [
-          {'id': 'valid_plan', 'title': 'Valid', 'startGlobal': 1, 'endGlobal': 7, 'dailyTarget': 5, 'createdAt': '2026-10-04T00:00:00.000'},
-          'corrupted_entry',
-          {'invalid': 'no_id'},
-        ],
-        'items': {
-          '1': {'globalAyah': 1, 'status': 'memorized'},
-          'corrupted_key': 'not_a_map',
-          '99999': {'globalAyah': 99999, 'status': 'learning'}, // Should be clamped to 6236
-        },
-        'session': 'corrupted_session_string',
-      });
+    test(
+      'Resiliently ignores corrupted records and parses valid ones',
+      () async {
+        await storage.writeMap(QuranMemorizationRepository.storageKey, {
+          'version': 1,
+          'plans': [
+            {
+              'id': 'valid_plan',
+              'title': 'Valid',
+              'startGlobal': 1,
+              'endGlobal': 7,
+              'dailyTarget': 5,
+              'createdAt': '2026-10-04T00:00:00.000',
+            },
+            'corrupted_entry',
+            {'invalid': 'no_id'},
+          ],
+          'items': {
+            '1': {'globalAyah': 1, 'status': 'memorized'},
+            'corrupted_key': 'not_a_map',
+            '99999': {
+              'globalAyah': 99999,
+              'status': 'learning',
+            }, // Should be clamped to 6236
+          },
+          'session': 'corrupted_session_string',
+        });
 
-      final loaded = await repository.loadData();
-      expect(loaded.plans.length, 1);
-      expect(loaded.plans.first.id, 'valid_plan');
-      expect(loaded.items.containsKey(1), true);
-      expect(loaded.items[1]?.status, MemorizationStatus.memorized);
-      expect(loaded.items[6236]?.status, MemorizationStatus.learning);
-      expect(loaded.sessionResume, null);
-    });
+        final loaded = await repository.loadData();
+        expect(loaded.plans.length, 1);
+        expect(loaded.plans.first.id, 'valid_plan');
+        expect(loaded.items.containsKey(1), true);
+        expect(loaded.items[1]?.status, MemorizationStatus.memorized);
+        expect(loaded.items[6236]?.status, MemorizationStatus.learning);
+        expect(loaded.sessionResume, null);
+      },
+    );
   });
 
   group('Q8 — QuranMemorizationCubit Plan CRUD & Progress', () {
@@ -392,147 +428,162 @@ void main() {
       expect(cubit.state.activePlan, null);
     });
 
-    test('setItemStatus updates mastery and calculates plan breakdown accurately', () async {
-      final plan = await cubit.createPlan(
-        title: 'خطة تجريبية',
-        startGlobalAyah: 1,
-        endGlobalAyah: 5,
-        dailyTarget: 2,
-      );
+    test(
+      'setItemStatus updates mastery and calculates plan breakdown accurately',
+      () async {
+        final plan = await cubit.createPlan(
+          title: 'خطة تجريبية',
+          startGlobalAyah: 1,
+          endGlobalAyah: 5,
+          dailyTarget: 2,
+        );
 
-      await cubit.setItemStatus(1, MemorizationStatus.memorized);
-      await cubit.setItemStatus(2, MemorizationStatus.memorized);
-      await cubit.setItemStatus(3, MemorizationStatus.learning);
-      await cubit.setItemStatus(4, MemorizationStatus.needsRevision);
+        await cubit.setItemStatus(1, MemorizationStatus.memorized);
+        await cubit.setItemStatus(2, MemorizationStatus.memorized);
+        await cubit.setItemStatus(3, MemorizationStatus.learning);
+        await cubit.setItemStatus(4, MemorizationStatus.needsRevision);
 
-      final progress = cubit.state.planProgress(plan);
-      expect(progress.total, 5);
-      expect(progress.memorized, 2);
-      expect(progress.learning, 1);
-      expect(progress.needsRevision, 1);
-      expect(progress.remaining, 3);
-      expect(progress.percentage, 0.4);
+        final progress = cubit.state.planProgress(plan);
+        expect(progress.total, 5);
+        expect(progress.memorized, 2);
+        expect(progress.learning, 1);
+        expect(progress.needsRevision, 1);
+        expect(progress.remaining, 3);
+        expect(progress.percentage, 0.4);
 
-      expect(cubit.state.totalMemorizedCount, 2);
-      expect(cubit.state.totalLearningCount, 1);
-      expect(cubit.state.totalNeedsRevisionCount, 1);
-    });
+        expect(cubit.state.totalMemorizedCount, 2);
+        expect(cubit.state.totalLearningCount, 1);
+        expect(cubit.state.totalNeedsRevisionCount, 1);
+      },
+    );
 
-    test('All 6,236 Ayahs can be set and queried without bounds errors', () async {
-      await cubit.setItemStatus(1, MemorizationStatus.memorized);
-      await cubit.setItemStatus(6236, MemorizationStatus.needsRevision);
+    test(
+      'All 6,236 Ayahs can be set and queried without bounds errors',
+      () async {
+        await cubit.setItemStatus(1, MemorizationStatus.memorized);
+        await cubit.setItemStatus(6236, MemorizationStatus.needsRevision);
 
-      expect(cubit.state.isAyahMemorized(1), true);
-      expect(cubit.state.isAyahNeedsRevision(6236), true);
-      expect(cubit.state.getItem(1).status, MemorizationStatus.memorized);
-      expect(cubit.state.getItem(6236).status, MemorizationStatus.needsRevision);
-      expect(cubit.state.getItem(3000).status, MemorizationStatus.notStarted);
-    });
+        expect(cubit.state.isAyahMemorized(1), true);
+        expect(cubit.state.isAyahNeedsRevision(6236), true);
+        expect(cubit.state.getItem(1).status, MemorizationStatus.memorized);
+        expect(
+          cubit.state.getItem(6236).status,
+          MemorizationStatus.needsRevision,
+        );
+        expect(cubit.state.getItem(3000).status, MemorizationStatus.notStarted);
+      },
+    );
   });
 
   group('Q8 — Daily Target Ayahs Calculation', () {
-    test('Calculates consecutive unmemorized slice and handles partial final day', () {
-      final state = QuranMemorizationState(
-        plans: [
-          MemorizationPlan(
-            id: 'p1',
-            title: 'Plan 1',
-            startGlobalAyah: 1,
-            endGlobalAyah: 7,
-            dailyTarget: 3,
-            createdAt: DateTime.now(),
-          ),
-        ],
-        items: {
-          1: MemorizationItem(
-            globalAyah: 1,
-            status: MemorizationStatus.memorized,
-            updatedAt: DateTime.now(),
-          ),
-          2: MemorizationItem(
-            globalAyah: 2,
-            status: MemorizationStatus.memorized,
-            updatedAt: DateTime.now(),
-          ),
-        },
-      );
-
-      final plan = state.plans.first;
-      // Ayahs 1 and 2 are memorized, target size 3 -> should pick [3, 4, 5]
-      final today = state.todayTargetAyahs(plan);
-      expect(today, [3, 4, 5]);
-
-      // When only 2 Ayahs remain (6 and 7), target size 3 -> should return [6, 7]
-      final nearCompleteState = QuranMemorizationState(
-        plans: state.plans,
-        items: {
-          for (var i = 1; i <= 5; i++)
-            i: MemorizationItem(
-              globalAyah: i,
+    test(
+      'Calculates consecutive unmemorized slice and handles partial final day',
+      () {
+        final state = QuranMemorizationState(
+          plans: [
+            MemorizationPlan(
+              id: 'p1',
+              title: 'Plan 1',
+              startGlobalAyah: 1,
+              endGlobalAyah: 7,
+              dailyTarget: 3,
+              createdAt: DateTime.now(),
+            ),
+          ],
+          items: {
+            1: MemorizationItem(
+              globalAyah: 1,
               status: MemorizationStatus.memorized,
               updatedAt: DateTime.now(),
             ),
-        },
-      );
-      final partialSlice = nearCompleteState.todayTargetAyahs(plan);
-      expect(partialSlice, [6, 7]);
-    });
+            2: MemorizationItem(
+              globalAyah: 2,
+              status: MemorizationStatus.memorized,
+              updatedAt: DateTime.now(),
+            ),
+          },
+        );
+
+        final plan = state.plans.first;
+        // Ayahs 1 and 2 are memorized, target size 3 -> should pick [3, 4, 5]
+        final today = state.todayTargetAyahs(plan);
+        expect(today, [3, 4, 5]);
+
+        // When only 2 Ayahs remain (6 and 7), target size 3 -> should return [6, 7]
+        final nearCompleteState = QuranMemorizationState(
+          plans: state.plans,
+          items: {
+            for (var i = 1; i <= 5; i++)
+              i: MemorizationItem(
+                globalAyah: i,
+                status: MemorizationStatus.memorized,
+                updatedAt: DateTime.now(),
+              ),
+          },
+        );
+        final partialSlice = nearCompleteState.todayTargetAyahs(plan);
+        expect(partialSlice, [6, 7]);
+      },
+    );
   });
 
   group('Q8 — Deterministic 4-Tier Revision Queue Algorithm', () {
-    test('Prioritizes according to 4 tiers and sorts with stable tie-breaker', () {
-      final now = DateTime(2026, 10, 4, 12, 0);
-      final oldTime = now.subtract(const Duration(hours: 72));
+    test(
+      'Prioritizes according to 4 tiers and sorts with stable tie-breaker',
+      () {
+        final now = DateTime(2026, 10, 4, 12, 0);
+        final oldTime = now.subtract(const Duration(hours: 72));
 
-      final items = <int, MemorizationItem>{
-        // Tier 4: Memorized
-        1: MemorizationItem(
-          globalAyah: 1,
-          status: MemorizationStatus.memorized,
-          lastReviewedAt: oldTime,
-          updatedAt: oldTime,
-        ),
-        // Tier 1: Needs revision, mistakeCount = 1
-        10: MemorizationItem(
-          globalAyah: 10,
-          status: MemorizationStatus.needsRevision,
-          mistakeCount: 1,
-          updatedAt: now,
-        ),
-        // Tier 1: Needs revision, mistakeCount = 4 (should be before 10)
-        20: MemorizationItem(
-          globalAyah: 20,
-          status: MemorizationStatus.needsRevision,
-          mistakeCount: 4,
-          updatedAt: now,
-        ),
-        // Tier 2: mistakeCount > 0, reviewed > 48h ago
-        30: MemorizationItem(
-          globalAyah: 30,
-          status: MemorizationStatus.memorized,
-          mistakeCount: 2,
-          lastReviewedAt: oldTime,
-          updatedAt: oldTime,
-        ),
-        // Tier 3: Learning
-        40: MemorizationItem(
-          globalAyah: 40,
-          status: MemorizationStatus.learning,
-          lastReviewedAt: oldTime,
-          updatedAt: oldTime,
-        ),
-      };
+        final items = <int, MemorizationItem>{
+          // Tier 4: Memorized
+          1: MemorizationItem(
+            globalAyah: 1,
+            status: MemorizationStatus.memorized,
+            lastReviewedAt: oldTime,
+            updatedAt: oldTime,
+          ),
+          // Tier 1: Needs revision, mistakeCount = 1
+          10: MemorizationItem(
+            globalAyah: 10,
+            status: MemorizationStatus.needsRevision,
+            mistakeCount: 1,
+            updatedAt: now,
+          ),
+          // Tier 1: Needs revision, mistakeCount = 4 (should be before 10)
+          20: MemorizationItem(
+            globalAyah: 20,
+            status: MemorizationStatus.needsRevision,
+            mistakeCount: 4,
+            updatedAt: now,
+          ),
+          // Tier 2: mistakeCount > 0, reviewed > 48h ago
+          30: MemorizationItem(
+            globalAyah: 30,
+            status: MemorizationStatus.memorized,
+            mistakeCount: 2,
+            lastReviewedAt: oldTime,
+            updatedAt: oldTime,
+          ),
+          // Tier 3: Learning
+          40: MemorizationItem(
+            globalAyah: 40,
+            status: MemorizationStatus.learning,
+            lastReviewedAt: oldTime,
+            updatedAt: oldTime,
+          ),
+        };
 
-      final state = QuranMemorizationState(items: items);
-      final queue = state.generateRevisionQueue(limit: 10, now: now);
+        final state = QuranMemorizationState(items: items);
+        final queue = state.generateRevisionQueue(limit: 10, now: now);
 
-      // Expected order:
-      // Tier 1: 20 (mistakeCount 4), then 10 (mistakeCount 1)
-      // Tier 2: 30
-      // Tier 3: 40
-      // Tier 4: 1
-      expect(queue, [20, 10, 30, 40, 1]);
-    });
+        // Expected order:
+        // Tier 1: 20 (mistakeCount 4), then 10 (mistakeCount 1)
+        // Tier 2: 30
+        // Tier 3: 40
+        // Tier 4: 1
+        expect(queue, [20, 10, 30, 40, 1]);
+      },
+    );
 
     test('Enforces queue limit parameter', () {
       final items = <int, MemorizationItem>{
@@ -701,21 +752,15 @@ void main() {
       expect(find.text('بدء وتثبيت خطة الحفظ'), findsOneWidget);
     });
 
-    testWidgets('MemorizationSessionPage renders recall card and evaluation buttons', (tester) async {
-      tester.view.physicalSize = const Size(1000, 2000);
+    testWidgets('MemorizationPlanPage stays calm without overflow at 320px', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 760);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
-
-      final plan = await cubit.createPlan(
-        title: 'خطة الورد',
-        startGlobalAyah: 1,
-        endGlobalAyah: 2,
-        dailyTarget: 2,
-      );
-      cubit.startPlanSession(plan);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -724,25 +769,64 @@ void main() {
               BlocProvider<QuranMemorizationCubit>.value(value: cubit),
               BlocProvider<QuranCubit>.value(value: quranCubit),
             ],
-            child: MemorizationSessionPage(quranData: dummyData),
+            child: MemorizationPlanPage(quranData: dummyData),
           ),
         ),
       );
-
-      expect(find.text('جلسة حفظ الورد'), findsOneWidget);
-      expect(find.text('استحضر الآية الكريمة غيباً'), findsOneWidget);
-      expect(find.text('إظهار نص الآية للتأكد'), findsOneWidget);
-      expect(find.text('أعرفها ومحفوظة'), findsOneWidget);
-      expect(find.text('أحتاج مراجعة'), findsOneWidget);
-
-      // Tap reveal
-      await tester.tap(find.text('إظهار نص الآية للتأكد'));
       await tester.pumpAndSettle();
 
-      expect(find.text('نص الآية الكريمة'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      expect(find.text('خطة بسيطة يمكنك الاستمرار عليها'), findsOneWidget);
+      expect(find.text('بدء وتثبيت خطة الحفظ'), findsOneWidget);
     });
 
-    testWidgets('QuranMemorizationPage renders dashboard and statistics', (tester) async {
+    testWidgets(
+      'MemorizationSessionPage renders recall card and evaluation buttons',
+      (tester) async {
+        tester.view.physicalSize = const Size(1000, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final plan = await cubit.createPlan(
+          title: 'خطة الورد',
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+          dailyTarget: 2,
+        );
+        cubit.startPlanSession(plan);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MultiBlocProvider(
+              providers: [
+                BlocProvider<QuranMemorizationCubit>.value(value: cubit),
+                BlocProvider<QuranCubit>.value(value: quranCubit),
+              ],
+              child: MemorizationSessionPage(quranData: dummyData),
+            ),
+          ),
+        );
+
+        expect(find.text('جلسة حفظ الورد'), findsOneWidget);
+        expect(find.text('استحضر الآية الكريمة غيباً'), findsOneWidget);
+        expect(find.text('إظهار نص الآية للتأكد'), findsOneWidget);
+        expect(find.text('أعرفها ومحفوظة'), findsOneWidget);
+        expect(find.text('أحتاج مراجعة'), findsOneWidget);
+
+        // Tap reveal
+        await tester.tap(find.text('إظهار نص الآية للتأكد'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('نص الآية الكريمة'), findsOneWidget);
+      },
+    );
+
+    testWidgets('QuranMemorizationPage renders dashboard and statistics', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1000, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

@@ -18,12 +18,7 @@ class LibraryPage extends StatelessWidget {
     builder: (context, state) => Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            MishkatSpacing.base,
-            MishkatSpacing.md,
-            MishkatSpacing.base,
-            0,
-          ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: SizedBox(
             width: double.infinity,
             child: SegmentedButton<LibrarySection>(
@@ -36,7 +31,7 @@ class LibraryPage extends StatelessWidget {
                 ButtonSegment(
                   value: LibrarySection.khatma,
                   icon: Icon(Icons.route_outlined, size: 18),
-                  label: Text('الختمة'),
+                  label: Text('خطة الختمة'),
                 ),
               ],
               selected: {state.section},
@@ -76,68 +71,124 @@ class _BooksView extends StatelessWidget {
         ),
       );
     }
-    final books = context.read<LibraryCubit>().filteredBooks();
+
+    final cubit = context.read<LibraryCubit>();
+    final books = cubit.filteredBooks();
+    final categories = [
+      'الكل',
+      ...{for (final book in state.books) book.category},
+    ];
+    final totalItems = state.books.fold<int>(
+      0,
+      (total, book) => total + book.availableItems,
+    );
+    final recent = state.history.isEmpty
+        ? null
+        : state.books
+              .where((book) => book.id == state.history.first)
+              .firstOrNull;
+
     return ListView(
       key: const PageStorageKey('library-books'),
       padding: MishkatSpacing.page,
       children: [
         Text(
-          'قراءة موثقة',
+          'معرفة موثّقة',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
             color: context.mishkat.gold,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 2),
-        Text('المكتبة الإسلامية', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-        )),
         Text(
-          'كتب مختارة تُحفظ داخل التطبيق للقراءة دون إنترنت.',
-          style: TextStyle(color: context.mishkat.textSecondary),
+          'المكتبة الإسلامية',
+          style: Theme.of(context).textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.w900),
         ),
-        const SizedBox(height: MishkatSpacing.lg),
+        const SizedBox(height: 4),
+        Text(
+          '${state.books.length} كتب · $totalItems مادة عربية · تعمل دون إنترنت',
+          style: TextStyle(color: context.mishkat.textSecondary, height: 1.5),
+        ),
+        if (recent != null) ...[
+          const SizedBox(height: 20),
+          _ContinueReadingCard(
+            book: recent,
+            hasSavedPosition: state.readingPositions.containsKey(recent.id),
+            onTap: () => _openBook(context, recent),
+          ),
+        ],
+        const SizedBox(height: 20),
         TextField(
-          onChanged: context.read<LibraryCubit>().search,
+          onChanged: cubit.search,
+          textInputAction: TextInputAction.search,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search_rounded),
             hintText: 'ابحث عن كتاب أو مؤلف',
           ),
         ),
-        const SizedBox(height: MishkatSpacing.lg),
-        const SectionHeading(title: 'الكتب المتاحة'),
+        const SectionHeading(
+          title: 'تصفّح حسب المجال',
+          padding: EdgeInsets.only(top: 22, bottom: 10),
+        ),
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: categories.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              return _CategoryChip(
+                label: category,
+                selected: state.category == category,
+                onTap: () => cubit.setCategory(category),
+              );
+            },
+          ),
+        ),
+        SectionHeading(
+          title: state.query.isEmpty
+              ? state.category == 'الكل'
+                    ? 'كل الكتب'
+                    : state.category
+              : '${books.length} نتيجة',
+          padding: const EdgeInsets.only(top: 24, bottom: 10),
+        ),
         if (books.isEmpty)
           const ContentStatePanel(
             icon: Icons.search_off_rounded,
             title: 'لا توجد نتائج',
-            message: 'جرّب اسمًا أو تصنيفًا آخر.',
+            message: 'جرّب اسم كتاب أو مؤلف أو مجال آخر.',
           )
         else
           for (final book in books)
             Padding(
-              padding: const EdgeInsets.only(bottom: MishkatSpacing.sm),
+              padding: const EdgeInsets.only(bottom: 10),
               child: _BookCard(
                 book: book,
                 favorite: state.favorites.contains(book.id),
+                bookmarkCount: cubit.bookmarksForBook(book.id),
+                hasSavedPosition: state.readingPositions.containsKey(book.id),
+                loading:
+                    state.status == LibraryStatus.loading &&
+                    state.selectedBook?.id == book.id,
               ),
             ),
-        const SizedBox(height: MishkatSpacing.md),
+        const SizedBox(height: 8),
         MishkatCard(
-          padding: const EdgeInsets.all(MishkatSpacing.base),
+          padding: const EdgeInsets.all(14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.verified_outlined,
-                color: context.mishkat.primary,
-                size: 22,
-              ),
-              const SizedBox(width: MishkatSpacing.md),
+              Icon(Icons.verified_outlined, color: context.mishkat.primary),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'تعرض المكتبة النصوص التي تتوفر لها حزمة موثقة ومصدر واضح فقط.',
+                  'نعرض مصدر كل نص بوضوح. بيانات كتب الحديث عربية ومهيكلة من Open Hadith Data، والتفسير الميسر من QuranEnc.',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
+                    height: 1.5,
                     color: context.mishkat.textSecondary,
                   ),
                 ),
@@ -150,115 +201,296 @@ class _BooksView extends StatelessWidget {
   }
 }
 
-class _BookCard extends StatelessWidget {
-  const _BookCard({required this.book, required this.favorite});
+class _ContinueReadingCard extends StatelessWidget {
+  const _ContinueReadingCard({
+    required this.book,
+    required this.hasSavedPosition,
+    required this.onTap,
+  });
   final LibraryBook book;
-  final bool favorite;
+  final bool hasSavedPosition;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => MishkatCard(
-    padding: const EdgeInsets.all(MishkatSpacing.base),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    onTap: onTap,
+    color: context.mishkat.primarySoft,
+    borderColor: context.mishkat.primary.withValues(alpha: 0.18),
+    child: Row(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 68,
-              decoration: BoxDecoration(
-                color: context.mishkat.primarySoft,
-                borderRadius: BorderRadius.circular(MishkatRadius.md),
-                border: Border.all(color: context.mishkat.border),
+        Container(
+          width: 46,
+          height: 54,
+          decoration: BoxDecoration(
+            color: context.mishkat.surface,
+            borderRadius: MishkatRadius.brMd,
+          ),
+          child: Icon(
+            Icons.auto_stories_rounded,
+            color: context.mishkat.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                hasSavedPosition ? 'تابع من موضعك' : 'آخر كتاب فتحته',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: context.mishkat.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              child: Icon(
-                Icons.menu_book_rounded,
-                size: 28,
-                color: context.mishkat.primary,
+              Text(
+                book.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
+            ],
+          ),
+        ),
+        Icon(Icons.chevron_left_rounded, color: context.mishkat.primary),
+      ],
+    ),
+  );
+}
+
+class _BookCard extends StatelessWidget {
+  const _BookCard({
+    required this.book,
+    required this.favorite,
+    required this.bookmarkCount,
+    required this.hasSavedPosition,
+    required this.loading,
+  });
+  final LibraryBook book;
+  final bool favorite;
+  final int bookmarkCount;
+  final bool hasSavedPosition;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => MishkatCard(
+    padding: const EdgeInsets.all(14),
+    onTap: loading ? null : () => _openBook(context, book),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 54,
+          height: 72,
+          decoration: BoxDecoration(
+            color: _bookColor(context, book).withValues(alpha: 0.14),
+            borderRadius: MishkatRadius.brMd,
+            border: Border.all(
+              color: _bookColor(context, book).withValues(alpha: 0.25),
             ),
-            const SizedBox(width: MishkatSpacing.md),
-            Expanded(
-              child: Column(
+          ),
+          child: Icon(
+            _bookIcon(book),
+            size: 27,
+            color: _bookColor(context, book),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    book.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    book.author,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: context.mishkat.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: MishkatSpacing.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.mishkat.surfaceMuted,
-                      borderRadius: BorderRadius.circular(MishkatRadius.sm),
-                    ),
+                  Expanded(
                     child: Text(
-                      '${book.category} · ${book.availableItems} من ${book.expectedItems} حديثًا',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: context.mishkat.textSecondary,
+                      book.title,
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(99),
+                    onTap: () =>
+                        context.read<LibraryCubit>().toggleFavorite(book.id),
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: Icon(
+                        favorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: favorite
+                            ? context.mishkat.error
+                            : context.mishkat.textMuted,
+                        size: 20,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              tooltip: favorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة',
-              onPressed: () =>
-                  context.read<LibraryCubit>().toggleFavorite(book.id),
-              icon: Icon(
-                favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: favorite ? Colors.redAccent : context.mishkat.textMuted,
-                size: 22,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: MishkatSpacing.md),
-        Text(
-          book.description,
-          style: TextStyle(
-            fontSize: 13,
-            color: context.mishkat.textSecondary,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: MishkatSpacing.md),
-        MishkatPrimaryButton(
-          onPressed: () async {
-            await context.read<LibraryCubit>().openBook(book);
-            if (context.mounted &&
-                context.read<LibraryCubit>().state.status ==
-                    LibraryStatus.ready) {
-              await Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const LibraryReaderPage(),
+              Text(
+                book.author,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.mishkat.textSecondary,
                 ),
-              );
-            }
-          },
-          icon: const Icon(Icons.download_done_rounded),
-          label: 'فتح النسخة المحفوظة',
+              ),
+              const SizedBox(height: 7),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _MetaLabel(
+                    icon: Icons.menu_book_outlined,
+                    text: '${book.availableItems} ${book.itemLabel}',
+                  ),
+                  if (hasSavedPosition)
+                    const _MetaLabel(
+                      icon: Icons.history_rounded,
+                      text: 'موضع محفوظ',
+                    ),
+                  if (bookmarkCount > 0)
+                    _MetaLabel(
+                      icon: Icons.bookmark_rounded,
+                      text: '$bookmarkCount علامة',
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      book.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: context.mishkat.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (loading)
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  else
+                    Icon(
+                      Icons.chevron_left_rounded,
+                      color: context.mishkat.textMuted,
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     ),
   );
 }
+
+class _MetaLabel extends StatelessWidget {
+  const _MetaLabel({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: context.mishkat.surfaceMuted,
+      borderRadius: MishkatRadius.brPill,
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: context.mishkat.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: context.mishkat.textSecondary,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = selected ? Colors.white : context.mishkat.textSecondary;
+    return Material(
+      color: selected ? context.mishkat.brandDeep : context.mishkat.surface,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: selected ? context.mishkat.primary : context.mishkat.border,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _openBook(BuildContext context, LibraryBook book) async {
+  await context.read<LibraryCubit>().openBook(book);
+  if (context.mounted &&
+      context.read<LibraryCubit>().state.status == LibraryStatus.ready) {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const LibraryReaderPage()),
+    );
+  }
+}
+
+IconData _bookIcon(LibraryBook book) => switch (book.category) {
+  'التفسير وعلوم القرآن' => Icons.auto_stories_outlined,
+  'أذكار وأدعية' => Icons.volunteer_activism_outlined,
+  'السيرة والشمائل' => Icons.favorite_outline_rounded,
+  'أحكام وفقه' => Icons.balance_outlined,
+  _ => Icons.menu_book_rounded,
+};
+
+Color _bookColor(BuildContext context, LibraryBook book) => switch (book.id) {
+  'bukhari' => context.mishkat.primary,
+  'muslim' => context.mishkat.gold,
+  'tafsir-muyassar' => context.mishkat.success,
+  'hisn' => context.mishkat.warning,
+  _ => context.mishkat.primaryStrong,
+};

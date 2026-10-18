@@ -37,16 +37,23 @@ class KhatmaPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'خطط الختمة',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                      'ختمة القرآن',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      'ورد يومي واضح، وتقدّم محفوظ تلقائيًا.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: context.mishkat.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
               MishkatSecondaryAction(
-                onPressed: () => showCreatePlanModal(context, active?.nextPage ?? 1),
+                onPressed: () =>
+                    showCreatePlanModal(context, active?.nextPage ?? 1),
                 icon: const Icon(Icons.add_rounded),
                 label: 'خطة جديدة',
               ),
@@ -54,21 +61,15 @@ class KhatmaPage extends StatelessWidget {
           ),
           const SizedBox(height: MishkatSpacing.lg),
           if (active == null)
-            ContentStatePanel(
-              icon: Icons.route_outlined,
-              title: 'ابدأ ختمتك',
-              message: 'اختر مدة مناسبة، وسيقسّم مشكاة صفحات المصحف إلى ورد يومي واضح.',
-              action: MishkatPrimaryButton(
-                onPressed: () => showCreatePlanModal(context, 1),
-                label: 'إنشاء خطة ختمة',
-                icon: const Icon(Icons.add_rounded),
-              ),
+            _KhatmaStart(
+              onCreate: (days) =>
+                  showCreatePlanModal(context, 1, initialDuration: days),
             )
           else
             _ActivePlanCard(plan: active),
           if (state.plans.isNotEmpty) ...[
             const SizedBox(height: MishkatSpacing.lg),
-            const SectionHeading(title: 'جميع الخطط'),
+            const SectionHeading(title: 'خططك'),
             for (final plan in state.plans)
               Padding(
                 padding: const EdgeInsets.only(bottom: MishkatSpacing.sm),
@@ -111,9 +112,8 @@ class KhatmaPage extends StatelessWidget {
                           children: [
                             Text(
                               plan.name,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -169,11 +169,12 @@ class KhatmaPage extends StatelessWidget {
 
   static Future<void> showCreatePlanModal(
     BuildContext context,
-    int suggestedPage,
-  ) async {
+    int suggestedPage, {
+    int initialDuration = 30,
+  }) async {
     final name = TextEditingController(text: 'ختمتي');
     final page = TextEditingController(text: '$suggestedPage');
-    var duration = 30;
+    var duration = initialDuration;
     String? reminder = 'fajr';
     final create = await showModalBottomSheet<bool>(
       context: context,
@@ -181,7 +182,9 @@ class KhatmaPage extends StatelessWidget {
       useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MishkatRadius.xl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MishkatRadius.xl),
+        ),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
@@ -209,10 +212,13 @@ class KhatmaPage extends StatelessWidget {
                 ),
                 const SizedBox(height: MishkatSpacing.lg),
                 Text(
-                  'خطة ختمة جديدة',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  'أنشئ خطة ختمتك',
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  'اختر نقطة البداية والمدة، وسنحسب وردك اليومي.',
+                  style: TextStyle(color: context.mishkat.textSecondary),
                 ),
                 const SizedBox(height: MishkatSpacing.base),
                 TextField(
@@ -231,21 +237,26 @@ class KhatmaPage extends StatelessWidget {
                 const SizedBox(height: MishkatSpacing.base),
                 Text(
                   'مدة الختمة',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: MishkatSpacing.sm),
                 Wrap(
                   spacing: MishkatSpacing.sm,
                   runSpacing: MishkatSpacing.sm,
                   children: [
-                    for (final value in const [7, 15, 30, 60, 90])
-                      ChoiceChip(
-                        label: Text('$value يومًا'),
-                        selected: duration == value,
-                        onSelected: (_) =>
-                            setSheetState(() => duration = value),
+                    for (final option in const [
+                      (days: 7, label: 'أسبوع'),
+                      (days: 15, label: '15 يومًا'),
+                      (days: 30, label: 'شهر'),
+                      (days: 60, label: 'شهران'),
+                      (days: 90, label: '3 أشهر'),
+                    ])
+                      _DurationOption(
+                        label: option.label,
+                        selected: duration == option.days,
+                        onTap: () =>
+                            setSheetState(() => duration = option.days),
                       ),
                   ],
                 ),
@@ -275,9 +286,10 @@ class KhatmaPage extends StatelessWidget {
                     border: Border.all(color: context.mishkat.border),
                   ),
                   child: Text(
-                    'وردك المقترح: $daily صفحة يوميًا · من صفحة $safePage حتى 604',
+                    'وردك: $daily صفحة يوميًا\nموعد الإتمام المتوقع: ${AppFormatters.gregorianDate(DateTime.now().add(Duration(days: duration - 1)))}',
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
+                      height: 1.65,
+                      fontWeight: FontWeight.w800,
                       color: context.mishkat.primary,
                     ),
                   ),
@@ -325,9 +337,8 @@ class _ActivePlanCard extends StatelessWidget {
                 children: [
                   Text(
                     plan.name,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -372,6 +383,26 @@ class _ActivePlanCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: MishkatSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: _PlanStat(
+                label: 'المتبقي',
+                value: '${plan.remainingDays} يومًا',
+                icon: Icons.calendar_today_outlined,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _PlanStat(
+                label: 'موعد الإتمام',
+                value: AppFormatters.gregorianDate(plan.targetDate),
+                icon: Icons.flag_outlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: MishkatSpacing.md),
         Container(
           padding: const EdgeInsets.all(MishkatSpacing.base),
           decoration: BoxDecoration(
@@ -411,7 +442,7 @@ class _ActivePlanCard extends StatelessWidget {
         ),
         const SizedBox(height: MishkatSpacing.base),
         MishkatPrimaryAction(
-          onPressed: plan.status == KhatmaStatus.completed
+          onPressed: plan.status != KhatmaStatus.active
               ? null
               : () => _openReader(context),
           icon: const Icon(Icons.menu_book_rounded),
@@ -420,7 +451,7 @@ class _ActivePlanCard extends StatelessWidget {
         ),
         const SizedBox(height: MishkatSpacing.sm),
         MishkatSecondaryAction(
-          onPressed: plan.status == KhatmaStatus.completed
+          onPressed: plan.status != KhatmaStatus.active
               ? null
               : context.read<KhatmaCubit>().completeToday,
           icon: const Icon(Icons.check_circle_outline_rounded),
@@ -454,4 +485,212 @@ class _ActivePlanCard extends StatelessWidget {
       );
     }
   }
+}
+
+class _KhatmaStart extends StatelessWidget {
+  const _KhatmaStart({required this.onCreate});
+  final ValueChanged<int> onCreate;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: context.mishkat.primarySoft,
+          borderRadius: MishkatRadius.brLg,
+          border: Border.all(
+            color: context.mishkat.primary.withValues(alpha: 0.16),
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: context.mishkat.surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.route_rounded,
+                size: 30,
+                color: context.mishkat.primary,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'ابدأ رحلة ختمة جديدة',
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'نقسّم المصحف إلى ورد يومي يناسب وقتك، ونحفظ تقدمك حتى تتم الختمة بإذن الله.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                height: 1.55,
+                color: context.mishkat.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SectionHeading(
+        title: 'اختر إيقاعك',
+        padding: EdgeInsets.only(top: 22, bottom: 10),
+      ),
+      Row(
+        children: [
+          Expanded(
+            child: _PlanPreset(
+              days: 30,
+              title: 'شهر',
+              detail: '21 صفحة يوميًا',
+              onTap: onCreate,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PlanPreset(
+              days: 60,
+              title: 'شهران',
+              detail: '11 صفحة يوميًا',
+              onTap: onCreate,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PlanPreset(
+              days: 90,
+              title: '3 أشهر',
+              detail: '7 صفحات يوميًا',
+              onTap: onCreate,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      MishkatPrimaryButton(
+        onPressed: () => onCreate(30),
+        label: 'إنشاء خطة مخصصة',
+        icon: const Icon(Icons.tune_rounded),
+        isFullWidth: true,
+      ),
+    ],
+  );
+}
+
+class _PlanPreset extends StatelessWidget {
+  const _PlanPreset({
+    required this.days,
+    required this.title,
+    required this.detail,
+    required this.onTap,
+  });
+  final int days;
+  final String title;
+  final String detail;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) => MishkatCard(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+    onTap: () => onTap(days),
+    child: Column(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          detail,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          style: TextStyle(
+            fontSize: 10.5,
+            height: 1.3,
+            color: context.mishkat.textSecondary,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DurationOption extends StatelessWidget {
+  const _DurationOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? context.mishkat.brandDeep : context.mishkat.surface,
+    shape: StadiumBorder(
+      side: BorderSide(
+        color: selected ? context.mishkat.primary : context.mishkat.border,
+      ),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : context.mishkat.textSecondary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _PlanStat extends StatelessWidget {
+  const _PlanStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(11),
+    decoration: BoxDecoration(
+      color: context.mishkat.surfaceMuted,
+      borderRadius: MishkatRadius.brMd,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: context.mishkat.primary),
+        const SizedBox(height: 7),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            color: context.mishkat.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+        ),
+      ],
+    ),
+  );
 }

@@ -41,6 +41,16 @@ class KhatmaPlan extends Equatable {
   double get progress => (completedPages / totalPages).clamp(0, 1);
   int get remainingPages => math.max(0, 604 - progressPage);
   int get remainingDays => (remainingPages / dailyPages).ceil();
+  DateTime get targetDate => startDate.add(Duration(days: durationDays - 1));
+  int get elapsedDays => math.max(
+    1,
+    DateTime.now()
+            .difference(
+              DateTime(startDate.year, startDate.month, startDate.day),
+            )
+            .inDays +
+        1,
+  );
 
   factory KhatmaPlan.fromJson(Map<String, dynamic> json) => KhatmaPlan(
     id: json['id'] as String,

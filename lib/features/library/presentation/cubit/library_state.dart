@@ -13,7 +13,10 @@ class LibraryState extends Equatable {
     this.books = const [],
     this.favorites = const {},
     this.history = const [],
+    this.bookmarks = const {},
+    this.readingPositions = const {},
     this.query = '',
+    this.category = 'الكل',
     this.selectedBook,
     this.entries = const [],
     this.error,
@@ -23,7 +26,10 @@ class LibraryState extends Equatable {
   final List<LibraryBook> books;
   final Set<String> favorites;
   final List<String> history;
+  final Set<String> bookmarks;
+  final Map<String, String> readingPositions;
   final String query;
+  final String category;
   final LibraryBook? selectedBook;
   final List<LibraryEntry> entries;
   final String? error;
@@ -34,7 +40,10 @@ class LibraryState extends Equatable {
     List<LibraryBook>? books,
     Set<String>? favorites,
     List<String>? history,
+    Set<String>? bookmarks,
+    Map<String, String>? readingPositions,
     String? query,
+    String? category,
     LibraryBook? selectedBook,
     List<LibraryEntry>? entries,
     String? error,
@@ -44,7 +53,10 @@ class LibraryState extends Equatable {
     books: books ?? this.books,
     favorites: favorites ?? this.favorites,
     history: history ?? this.history,
+    bookmarks: bookmarks ?? this.bookmarks,
+    readingPositions: readingPositions ?? this.readingPositions,
     query: query ?? this.query,
+    category: category ?? this.category,
     selectedBook: selectedBook ?? this.selectedBook,
     entries: entries ?? this.entries,
     error: error ?? this.error,
@@ -57,7 +69,10 @@ class LibraryState extends Equatable {
     books,
     favorites,
     history,
+    bookmarks,
+    readingPositions,
     query,
+    category,
     selectedBook,
     entries,
     error,

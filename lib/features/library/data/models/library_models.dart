@@ -8,6 +8,8 @@ class LibraryBook extends Equatable {
     required this.category,
     required this.description,
     required this.contentPath,
+    required this.contentType,
+    required this.itemLabel,
     required this.availableItems,
     required this.expectedItems,
     required this.sourceName,
@@ -19,6 +21,8 @@ class LibraryBook extends Equatable {
   final String category;
   final String description;
   final String contentPath;
+  final String contentType;
+  final String itemLabel;
   final int availableItems;
   final int expectedItems;
   final String sourceName;
@@ -31,6 +35,8 @@ class LibraryBook extends Equatable {
     category: json['category'] as String? ?? '',
     description: json['description'] as String? ?? '',
     contentPath: json['contentPath'] as String,
+    contentType: json['contentType'] as String? ?? 'entries',
+    itemLabel: json['itemLabel'] as String? ?? 'مادة',
     availableItems: (json['availableItems'] as num?)?.toInt() ?? 0,
     expectedItems: (json['expectedItems'] as num?)?.toInt() ?? 0,
     sourceName: json['sourceName'] as String? ?? '',
@@ -45,6 +51,8 @@ class LibraryBook extends Equatable {
     category,
     description,
     contentPath,
+    contentType,
+    itemLabel,
     availableItems,
     expectedItems,
     sourceName,

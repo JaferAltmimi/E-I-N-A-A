@@ -236,78 +236,92 @@ class _ReadingPage extends StatelessWidget {
   final int total;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    key: PageStorageKey(entry.id),
-    padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          entry.chapter,
-          style: TextStyle(
-            color: context.mishkat.gold,
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          entry.title,
-          style: Theme.of(context).textTheme.headlineSmall
-              ?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 16),
-        MishkatCard(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            entry.text,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontSize: 18,
-              height: 2,
-              fontWeight: FontWeight.w500,
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final paperColor = isDark
+        ? const Color(0xFF2C251C)
+        : const Color(0xFFF1E4CE);
+    final paperBorderColor = isDark
+        ? const Color(0xFF5D4B35)
+        : const Color(0xFFD8C09A);
+    final inkColor = isDark ? const Color(0xFFF1E3CB) : const Color(0xFF3D3023);
+
+    return SingleChildScrollView(
+      key: PageStorageKey(entry.id),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            entry.chapter,
+            style: TextStyle(
+              color: context.mishkat.gold,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
             ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          entry.reference,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 12.5,
-            height: 1.5,
-            color: context.mishkat.textSecondary,
+          const SizedBox(height: 6),
+          Text(
+            entry.title,
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w900),
           ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          alignment: WrapAlignment.end,
-          spacing: 8,
-          children: [
-            TextButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(
-                    text:
-                        '${entry.title}\n\n${entry.text}\n\n${entry.reference}',
-                  ),
-                );
-                if (context.mounted) context.showMessage('تم نسخ النص.');
-              },
-              icon: const Icon(Icons.copy_rounded, size: 17),
-              label: const Text('نسخ'),
-            ),
-            if (entry.sourceUrl.isNotEmpty)
-              TextButton.icon(
-                onPressed: () => launchUrl(
-                  Uri.parse(entry.sourceUrl),
-                  mode: LaunchMode.externalApplication,
-                ),
-                icon: const Icon(Icons.open_in_new_rounded, size: 17),
-                label: const Text('المصدر'),
+          const SizedBox(height: 16),
+          MishkatCard(
+            color: paperColor,
+            borderColor: paperBorderColor,
+            padding: const EdgeInsets.all(22),
+            child: Text(
+              entry.text,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: inkColor,
+                fontSize: 18,
+                height: 2.05,
+                fontWeight: FontWeight.w500,
               ),
-          ],
-        ),
-      ],
-    ),
-  );
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            entry.reference,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              height: 1.5,
+              color: context.mishkat.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(
+                      text:
+                          '${entry.title}\n\n${entry.text}\n\n${entry.reference}',
+                    ),
+                  );
+                  if (context.mounted) context.showMessage('تم نسخ النص.');
+                },
+                icon: const Icon(Icons.copy_rounded, size: 17),
+                label: const Text('نسخ'),
+              ),
+              if (entry.sourceUrl.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(entry.sourceUrl),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 17),
+                  label: const Text('المصدر'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

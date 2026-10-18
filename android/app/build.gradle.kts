@@ -16,10 +16,20 @@ val keystoreProperties = Properties().apply {
 val isReleaseBuild = gradle.startParameter.taskNames.any {
     it.contains("release", ignoreCase = true)
 }
+val useTestSigningForRelease = providers.gradleProperty("useTestSigningForRelease")
+    .orNull
+    .equals("true", ignoreCase = true)
 
-if (isReleaseBuild && !keystorePropertiesFile.exists()) {
+if (isReleaseBuild && !keystorePropertiesFile.exists() && !useTestSigningForRelease) {
     throw GradleException(
         "Missing android/key.properties. Configure the private Play Store upload key before building Release."
+    )
+}
+
+if (isReleaseBuild && useTestSigningForRelease) {
+    logger.warn(
+        "Building a Release APK with the Android debug key for private testing only. " +
+            "Do not upload this artifact to Google Play."
     )
 }
 
@@ -61,7 +71,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (useTestSigningForRelease) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }
         }
     }
 }

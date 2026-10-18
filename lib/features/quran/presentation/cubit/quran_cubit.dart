@@ -357,7 +357,11 @@ class QuranCubit extends Cubit<QuranState> {
     );
 
     try {
-      await _audio.playStreamUrl(station.streamUrl!);
+      await _audio.playStreamUrl(
+        station.streamUrl!,
+        title: station.title,
+        sourceLabel: station.sourceLabel,
+      );
     } on QuranAudioOfflineException catch (e) {
       if (requestId != _playbackRequestId) return;
       emit(

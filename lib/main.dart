@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import 'app/app.dart';
 import 'app/app_bloc_observer.dart';
@@ -15,6 +16,14 @@ import 'features/settings/presentation/cubit/settings_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.dakomn.mishkatapp.quran_audio',
+    androidNotificationChannelName: 'تشغيل القرآن الكريم',
+    androidNotificationChannelDescription:
+        'التلاوات وإذاعات القرآن الكريم أثناء استخدام التطبيقات الأخرى',
+    androidNotificationOngoing: true,
+    androidStopForegroundOnPause: false,
+  );
   Bloc.observer = const AppBlocObserver();
 
   final storage = LocalStorageService();

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import '../constants/app_constants.dart';
 import 'quran_audio_cache_service.dart';
@@ -169,6 +171,43 @@ class QuranAudioService {
   Duration? get duration => _player.duration;
   Duration get currentPosition => _player.position;
 
+  Future<void> _configurePlaybackSession() async {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
+  }
+
+  MediaItem _ayahMediaItem({
+    required ReciterInfo reciter,
+    required QuranAyahAddress address,
+  }) {
+    return MediaItem(
+      id: 'quran:${reciter.id}:${address.global}',
+      album: 'القرآن الكريم · مشكاة',
+      title: 'السورة ${address.surah} · الآية ${address.ayah}',
+      artist: reciter.name,
+      extras: <String, dynamic>{
+        'kind': 'ayah',
+        'surah': address.surah,
+        'ayah': address.ayah,
+        'globalAyah': address.global,
+      },
+    );
+  }
+
+  MediaItem _stationMediaItem({
+    required String url,
+    String? title,
+    String? sourceLabel,
+  }) {
+    return MediaItem(
+      id: 'radio:$url',
+      album: 'إذاعات القرآن · مشكاة',
+      title: title ?? 'إذاعة القرآن الكريم',
+      artist: sourceLabel ?? 'مشكاة',
+      extras: const <String, dynamic>{'kind': 'radio'},
+    );
+  }
+
   /// Plays the audio for [globalAyah] using an offline-first strategy.
   ///
   /// 1. Checks local cache for a valid file.
@@ -182,6 +221,10 @@ class QuranAudioService {
     final requestId = ++_activeRequestId;
     final safeAyah = globalAyah.clamp(1, AppConstants.totalAyahs);
     final reciterInfo = AppConstants.findReciter(reciter);
+    final address = QuranAyahIndex.fromGlobal(safeAyah);
+    final mediaItem = _ayahMediaItem(reciter: reciterInfo, address: address);
+
+    await _configurePlaybackSession();
 
     if (reciterInfo.source == ReciterAudioSource.segmentedSurah) {
       final isOnline = await _cache.isNetworkAvailable();
@@ -192,12 +235,12 @@ class QuranAudioService {
       }
       final segment = await _segmentResolver.resolve(
         reciter: reciterInfo,
-        address: QuranAyahIndex.fromGlobal(safeAyah),
+        address: address,
       );
       if (requestId != _activeRequestId) return;
       await _player.setAudioSource(
         ClippingAudioSource(
-          child: AudioSource.uri(Uri.parse(segment.audioUrl)),
+          child: AudioSource.uri(Uri.parse(segment.audioUrl), tag: mediaItem),
           start: segment.start,
           end: segment.end,
         ),
@@ -217,7 +260,9 @@ class QuranAudioService {
 
     if (localFile != null && await localFile.exists()) {
       try {
-        await _player.setFilePath(localFile.path);
+        await _player.setAudioSource(
+          AudioSource.uri(Uri.file(localFile.path), tag: mediaItem),
+        );
         if (requestId != _activeRequestId) return;
         // Playback completion is reported by playerStateStream. Do not keep
         // this command pending for the full Ayah duration; the QuranCubit
@@ -246,7 +291,9 @@ class QuranAudioService {
       globalAyah: safeAyah,
     );
 
-    await _player.setUrl(url);
+    await _player.setAudioSource(
+      AudioSource.uri(Uri.parse(url), tag: mediaItem),
+    );
     if (requestId != _activeRequestId) return;
     unawaited(_player.play());
 
@@ -284,16 +331,30 @@ extension QuranAudioStreamExtension on QuranAudioService {
   /// Plays an audio live stream or radio station directly via [url].
   ///
   /// Guarantees that any ongoing Ayah playback or previous stream is cleanly stopped.
-  Future<void> playStreamUrl(String url) async {
+  Future<void> playStreamUrl(
+    String url, {
+    String? title,
+    String? sourceLabel,
+  }) async {
     try {
       final requestId = ++_activeRequestId;
+      await _configurePlaybackSession();
       final isOnline = await _cache.isNetworkAvailable();
       if (!isOnline) {
         throw const QuranAudioOfflineException(
           'البث غير متوفر دون اتصال بالإنترنت. يرجى الاتصال بالشبكة للاستماع.',
         );
       }
-      await _player.setUrl(url);
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(url),
+          tag: _stationMediaItem(
+            url: url,
+            title: title,
+            sourceLabel: sourceLabel,
+          ),
+        ),
+      );
       if (requestId != _activeRequestId) return;
       unawaited(_player.play());
     } on NoSuchMethodError {

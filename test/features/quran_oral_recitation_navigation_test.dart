@@ -51,41 +51,69 @@ class TestAudioService implements QuranAudioService {
   final _state = StreamController<PlayerState>.broadcast();
   final _pos = StreamController<Duration>.broadcast();
 
-  @override Stream<PlayerState> get playerState => _state.stream;
-  @override Stream<Duration> get position => _pos.stream;
-  @override Stream<Duration> get positionStream => _pos.stream;
-  @override Stream<Duration?> get durationStream => const Stream.empty();
-  @override Stream<Duration> get bufferedPositionStream => const Stream.empty();
-  @override Duration? get duration => null;
-  @override Duration get currentPosition => Duration.zero;
-  @override bool get isPlaying => false;
-  @override Future<void> playAyah({required String reciter, required int globalAyah}) async {}
-  @override Future<void> pause() async {}
-  @override Future<void> resume() async {}
-  @override Future<void> stop() async {}
-  @override Future<void> seek(Duration position) async {}
-  @override Future<void> dispose() async {
+  @override
+  Stream<PlayerState> get playerState => _state.stream;
+  @override
+  Stream<Duration> get position => _pos.stream;
+  @override
+  Stream<Duration> get positionStream => _pos.stream;
+  @override
+  Stream<Duration?> get durationStream => const Stream.empty();
+  @override
+  Stream<Duration> get bufferedPositionStream => const Stream.empty();
+  @override
+  Duration? get duration => null;
+  @override
+  Duration get currentPosition => Duration.zero;
+  @override
+  bool get isPlaying => false;
+  @override
+  Future<void> playAyah({
+    required String reciter,
+    required int globalAyah,
+  }) async {}
+  @override
+  Future<void> pause() async {}
+  @override
+  Future<void> resume() async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> seek(Duration position) async {}
+  @override
+  Future<void> dispose() async {
     await _state.close();
     await _pos.close();
   }
 }
 
 class TestNotifications implements LocalNotificationService {
-  @override Future<void> initialize() async {}
-  @override Future<bool> requestPermission() async => true;
-  @override Future<void> scheduleAll(List<ScheduledAppNotification> notifications) async {}
-  @override Future<void> cancelAll() async {}
-  @override Future<void> showTest({required bool sound, required bool vibrate, String? soundName}) async {}
+  @override
+  Future<void> initialize() async {}
+  @override
+  Future<bool> requestPermission() async => true;
+  @override
+  Future<void> scheduleAll(
+    List<ScheduledAppNotification> notifications,
+  ) async {}
+  @override
+  Future<void> cancelAll() async {}
+  @override
+  Future<void> showTest({
+    required bool sound,
+    required bool vibrate,
+    String? soundName,
+  }) async {}
 }
 
 class TestLocationService implements LocationService {
   @override
   Future<AppPosition> currentPosition() async => const AppPosition(
-        latitude: 14.5425,
-        longitude: 49.1242,
-        label: 'المكلا، حضرموت',
-        suggestedMethod: 'MWL',
-      );
+    latitude: 14.5425,
+    longitude: 49.1242,
+    label: 'المكلا، حضرموت',
+    suggestedMethod: 'MWL',
+  );
 
   @override
   NearbyCity closestCity(double latitude, double longitude) =>
@@ -110,99 +138,111 @@ void main() {
   });
 
   testWidgets(
-      'Navigating to Oral Recitation from QuranPage in MishkatApp opens without ProviderNotFoundException',
-      (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
-    tester.view.devicePixelRatio = 2.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    'Navigating to Oral Recitation from QuranPage in MishkatApp opens without ProviderNotFoundException',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    final storage = TestStorage();
-    await storage.init();
-    await storage.writeMap('settings', const AppSettings(
-      city: 'المكلا، حضرموت',
-      latitude: 14.5425,
-      longitude: 49.1242,
-      onboardingSeen: true,
-      method: 'MWL',
-      notificationsEnabled: false,
-      keepAwake: false,
-    ).toJson());
+      final storage = TestStorage();
+      await storage.init();
+      await storage.writeMap(
+        'settings',
+        const AppSettings(
+          city: 'المكلا، حضرموت',
+          latitude: 14.5425,
+          longitude: 49.1242,
+          onboardingSeen: true,
+          method: 'MWL',
+          notificationsEnabled: false,
+          keepAwake: false,
+        ).toJson(),
+      );
 
-    final settingsCubit = SettingsCubit(
-      storage: storage,
-      locationService: TestLocationService(),
-      notifications: TestNotifications(),
-    );
-    await settingsCubit.load();
-
-    final khatmaCubit = KhatmaCubit(storage);
-
-    // Boot real MishkatApp
-    await tester.pumpWidget(
-      MishkatApp(
+      final settingsCubit = SettingsCubit(
         storage: storage,
+        locationService: TestLocationService(),
         notifications: TestNotifications(),
-        audioService: TestAudioService(),
-        quranRepository: globalQuranRepo,
-        adhkarRepository: globalAdhkarRepo,
-        libraryRepository: globalLibraryRepo,
-        settingsCubit: settingsCubit,
-        khatmaCubit: khatmaCubit,
-        speechService: MockSpeechRecognitionService(),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await settingsCubit.load();
 
-    // App starts on HomePage. Switch to Quran tab (Tab 1)
-    final quranTab = find.text('القرآن');
-    expect(quranTab, findsWidgets);
-    await tester.tap(quranTab.first);
-    await tester.pumpAndSettle();
+      final khatmaCubit = KhatmaCubit(storage);
 
-    // Open the dedicated memorization destination, then start oral recitation.
-    // Secondary practice tools intentionally live there to keep Quran home calm.
-    final memorizationButton = find.text('لوحة التحفيظ');
-    expect(memorizationButton, findsOneWidget);
-    await tester.tap(memorizationButton);
-    await tester.pumpAndSettle();
+      // Boot real MishkatApp
+      await tester.pumpWidget(
+        MishkatApp(
+          storage: storage,
+          notifications: TestNotifications(),
+          audioService: TestAudioService(),
+          quranRepository: globalQuranRepo,
+          adhkarRepository: globalAdhkarRepo,
+          libraryRepository: globalLibraryRepo,
+          settingsCubit: settingsCubit,
+          khatmaCubit: khatmaCubit,
+          speechService: MockSpeechRecognitionService(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    final oralInfoButton = find.text('ميزة التسميع الشفهي والاستماع الذكي');
-    expect(oralInfoButton, findsOneWidget);
-    await tester.ensureVisible(oralInfoButton);
-    await tester.tap(oralInfoButton);
-    await tester.pumpAndSettle();
+      // App starts on HomePage. Switch to Quran tab (Tab 1)
+      final quranTab = find.text('القرآن');
+      expect(quranTab, findsWidgets);
+      await tester.tap(quranTab.first);
+      await tester.pumpAndSettle();
 
-    // Bottom sheet is now visible. Tap primary action to open Oral Recitation page
-    final startOralButton = find.text('بدء التسميع الشفهي الآن');
-    expect(startOralButton, findsOneWidget);
-    await tester.tap(startOralButton);
-    await tester.pumpAndSettle();
+      // Open the dedicated memorization destination, then start oral recitation.
+      // Secondary practice tools intentionally live there to keep Quran home calm.
+      final memorizationButton = find.text('لوحة التحفيظ');
+      expect(memorizationButton, findsOneWidget);
+      await tester.tap(memorizationButton);
+      await tester.pumpAndSettle();
 
-    // Verify Oral Recitation page is rendered without any ProviderNotFoundException
-    expect(find.byType(QuranOralRecitationPage), findsOneWidget);
-    expect(find.text('التسميع الشفهي الذكي'), findsOneWidget);
-    expect(find.text('ٱلْفَاتِحَةِ · الآيات 1 - 7'), findsOneWidget);
-    expect(find.text('جاهز للتسميع'), findsOneWidget);
-    expect(find.text('بدء التسميع'), findsOneWidget);
+      final oralInfoButton = find.text('ميزة التسميع الشفهي والاستماع الذكي');
+      expect(oralInfoButton, findsOneWidget);
+      await tester.ensureVisible(oralInfoButton);
+      await tester.tap(oralInfoButton);
+      await tester.pumpAndSettle();
 
-    // Verify cubit received real QuranRepository instance from MishkatApp root
-    final innerContext = tester.element(find.text('التسميع الشفهي الذكي'));
-    final cubit = innerContext.read<QuranOralRecitationCubit>();
-    expect(cubit.quranRepository, same(globalQuranRepo));
-    expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
-    expect(cubit.state.targetWords.length, 29);
-    expect(cubit.state.errorMessage, isNull);
+      expect(
+        find.text(
+          'تبقى الآيات مخفية أثناء القراءة، ثم تظهر بعد اكتمال كل آية مع تمييز مواضع الخطأ.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('متاح ومدمج'), findsNothing);
 
-    // Tap back / leave page to verify clean disposal
-    final backButton = find.byType(BackButton);
-    expect(backButton, findsOneWidget);
-    await tester.tap(backButton);
-    await tester.pumpAndSettle();
+      // Bottom sheet is now visible. Tap primary action to open Oral Recitation page
+      final startOralButton = find.text('بدء التسميع الشفهي الآن');
+      expect(startOralButton, findsOneWidget);
+      await tester.tap(startOralButton);
+      await tester.pumpAndSettle();
 
-    // Verify we returned back to Quran tab
-    expect(find.byType(QuranOralRecitationPage), findsNothing);
-  });
+      // Verify Oral Recitation page is rendered without any ProviderNotFoundException
+      expect(find.byType(QuranOralRecitationPage), findsOneWidget);
+      expect(find.text('التسميع الشفهي الذكي'), findsOneWidget);
+      expect(find.text('ٱلْفَاتِحَةِ · الآيات 1 - 7'), findsOneWidget);
+      expect(find.text('جاهز للتسميع'), findsOneWidget);
+      expect(find.text('بدء التسميع'), findsOneWidget);
+
+      // Verify cubit received real QuranRepository instance from MishkatApp root
+      final innerContext = tester.element(find.text('التسميع الشفهي الذكي'));
+      final cubit = innerContext.read<QuranOralRecitationCubit>();
+      expect(cubit.quranRepository, same(globalQuranRepo));
+      expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
+      expect(cubit.state.targetWords.length, 29);
+      expect(cubit.state.errorMessage, isNull);
+
+      // Tap back / leave page to verify clean disposal
+      final backButton = find.byType(BackButton);
+      expect(backButton, findsOneWidget);
+      await tester.tap(backButton);
+      await tester.pumpAndSettle();
+
+      // Verify we returned back to Quran tab
+      expect(find.byType(QuranOralRecitationPage), findsNothing);
+    },
+  );
 }

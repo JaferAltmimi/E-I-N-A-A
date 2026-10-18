@@ -37,7 +37,9 @@ class OralRecitationInfoSheet extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MishkatRadius.xl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MishkatRadius.xl),
+        ),
       ),
       builder: (_) => OralRecitationInfoSheet(
         surahNumber: surahNumber,
@@ -51,21 +53,19 @@ class OralRecitationInfoSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.mishkat;
-    final theme = Theme.of(context);
 
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           MishkatSpacing.lg,
-          MishkatSpacing.base,
+          MishkatSpacing.md,
           MishkatSpacing.lg,
-          MishkatSpacing.xl,
+          MishkatSpacing.lg,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Drag handle
             Center(
               child: Container(
                 width: 38,
@@ -76,14 +76,13 @@ class OralRecitationInfoSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: MishkatSpacing.base),
-
-            // Icon + Title
+            const SizedBox(height: MishkatSpacing.lg),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
                     color: colors.primarySoft,
                     borderRadius: BorderRadius.circular(MishkatRadius.md),
@@ -99,106 +98,75 @@ class OralRecitationInfoSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'التسميع الشفهي الذكي',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        'الاستماع لتلاوة المستخدم واكتشاف الأخطاء آنياً',
+                        'اقرأ من حفظك، وسيتابع التطبيق تلاوتك آيةً آية.',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.5,
                           color: colors.textSecondary,
+                          height: 1.4,
                         ),
                       ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(MishkatRadius.sm),
-                  ),
-                  child: Text(
-                    'متاح الآن',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: colors.primary,
-                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: MishkatSpacing.base),
-
-            // Truthful Architecture Statement Card
-            MishkatCard(
-              color: colors.surfaceVariant.withValues(alpha: 0.5),
-              padding: const EdgeInsets.all(MishkatSpacing.base),
-              child: Column(
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.surfaceVariant,
+                borderRadius: MishkatRadius.brMd,
+              ),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.verified_user_outlined, size: 18, color: colors.primary),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'المصداقية والأمانة العلمية والتقنية',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.visibility_off_outlined,
+                    color: colors.primary,
+                    size: 20,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'يتم التقاط الصوت محلياً على جهازك ومطابقة التلاوة مع الرسم العثماني لكشف السقط والأخطاء اللفظية بدقة، مع حماية تامة لخصوصيتك دون إرسال التسجيلات لأي خوادم خارجية.',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: colors.textSecondary,
-                      height: 1.55,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'تبقى الآيات مخفية أثناء القراءة، ثم تظهر بعد اكتمال كل آية مع تمييز مواضع الخطأ.',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 15,
+                  color: colors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'يُستخدم الميكروفون أثناء الجلسة ولا يحتفظ التطبيق بتسجيلك.',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: MishkatSpacing.base),
-
-            // Capabilities Checklist
-            _buildCapabilityRow(
-              icon: Icons.check_circle_outline_rounded,
-              color: colors.primary,
-              title: 'تشغيل تلاوات القراء ومزامنتها (Q12)',
-              status: 'متاح ومدمج',
-            ),
-            const SizedBox(height: MishkatSpacing.xs),
-            _buildCapabilityRow(
-              icon: Icons.check_circle_outline_rounded,
-              color: colors.primary,
-              title: 'التسميع والاستحضار البصري في المصحف (Q13)',
-              status: 'متاح ومدمج',
-            ),
-            const SizedBox(height: MishkatSpacing.xs),
-            _buildCapabilityRow(
-              icon: Icons.check_circle_outline_rounded,
-              color: colors.primary,
-              title: 'التقاط الصوت من الميكروفون (Q14)',
-              status: 'متاح ومدمج',
-            ),
-            const SizedBox(height: MishkatSpacing.xs),
-            _buildCapabilityRow(
-              icon: Icons.check_circle_outline_rounded,
-              color: colors.primary,
-              title: 'المطابقة الصوتية للرسم العثماني وكشف الأخطاء',
-              status: 'متاح ومدمج',
-            ),
-            const SizedBox(height: MishkatSpacing.lg),
-
-            // Primary Action: Start Oral Recitation (Q14)
             MishkatPrimaryAction(
               onPressed: () {
                 final navigator = Navigator.of(context);
@@ -223,56 +191,27 @@ class OralRecitationInfoSheet extends StatelessWidget {
               },
               label: 'بدء التسميع الشفهي الآن',
               icon: const Icon(Icons.mic_rounded),
+              isFullWidth: true,
             ),
             const SizedBox(height: 8),
-
-            // Secondary Action: Visual Recall (Q13)
             MishkatSecondaryAction(
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const QuranReaderPage(
-                      startRangeSelection: true,
-                    ),
+                    builder: (_) =>
+                        const QuranReaderPage(startRangeSelection: true),
                   ),
                 );
               },
               label: 'التسميع والاستحضار البصري في المصحف',
               icon: const Icon(Icons.visibility_off_rounded),
+              isFullWidth: true,
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildCapabilityRow({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String status,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-          ),
-        ),
-        Text(
-          status,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -446,17 +446,19 @@ void main() {
       expect(find.text('ماهر المعيقلي'), findsOneWidget);
       expect(find.text('سعود الشريم'), findsOneWidget);
 
-      // Verify pending reciters labeled with truthful status
+      // Verify newly connected reciters are available in the main catalog.
       expect(find.text('بندر بليلة'), findsOneWidget);
       expect(find.text('عبدالله عواد الجهني'), findsOneWidget);
       expect(find.text('ناصر القطامي'), findsOneWidget);
       expect(find.text('ياسر الدوسري'), findsOneWidget);
+      expect(find.textContaining('بانتظار توثيق'), findsNothing);
+      expect(find.text('غير متاح حالياً'), findsNothing);
 
       quranCubit.close();
     });
 
     testWidgets(
-      '6. Truthful availability states for Live Streams and Radio Stations',
+      '6. Live Streams and Radio Stations are verified and playable',
       (tester) async {
         setTestViewport(tester, size: const Size(600, 2200));
 
@@ -519,12 +521,65 @@ void main() {
         expect(find.text('إذاعة القرآن الكريم من الشارقة'), findsOneWidget);
         expect(find.text('إذاعة القرآن الكريم من قطر'), findsOneWidget);
         expect(find.text('إذاعة القرآن الكريم من البحرين'), findsOneWidget);
-        expect(find.text('إذاعة القرآن الكريم من السودان'), findsOneWidget);
-        expect(find.text('إذاعة القرآن الكريم من اليمن'), findsOneWidget);
+        expect(find.text('إذاعة التلاوات الخاشعة'), findsOneWidget);
+        expect(find.text('إذاعة تراتيل قصيرة'), findsOneWidget);
+        expect(find.text('إذاعة آيات السكينة'), findsOneWidget);
+        expect(find.text('إذاعة سورة البقرة'), findsOneWidget);
+        expect(find.text('بانتظار اعتماد المصدر الموثق'), findsNothing);
+
+        final radios = QuranAudioStation.defaultCatalog
+            .where((station) => station.category == AudioStationCategory.radio)
+            .toList(growable: false);
+        expect(radios, hasLength(9));
+        expect(radios.every((station) => station.isAudioPlayable), isTrue);
+        expect(
+          radios.every(
+            (station) => Uri.tryParse(station.streamUrl!)?.scheme == 'https',
+          ),
+          isTrue,
+        );
 
         quranCubit.close();
       },
     );
+
+    testWidgets('6a. Radio card toggles playback inside the app', (
+      tester,
+    ) async {
+      setTestViewport(tester, size: const Size(390, 900));
+
+      final quranCubit = QuranCubit(
+        repository: globalQuranRepo,
+        storage: storage,
+        audio: audioService,
+        reciter: 'ar.alafasy',
+        fontSize: 32,
+      );
+      await quranCubit.load();
+
+      await tester.pumpWidget(buildTestApp(quranCubit: quranCubit));
+      await pumpScreen(tester);
+      await tester.tap(find.text('فتح المشغّل القرآني'));
+      await tester.pumpAndSettle();
+      tester.widget<TabBarView>(find.byType(TabBarView)).controller!.index = 2;
+      await tester.pumpAndSettle();
+
+      final cairoCard = find.text('إذاعة القرآن الكريم من القاهرة').first;
+      await tester.tap(cairoCard);
+      await pumpScreen(tester);
+
+      expect(quranCubit.state.audioStatus, QuranAudioStatus.playing);
+      expect(quranCubit.state.activeStation?.id, 'radio_cairo');
+      expect(audioService.lastPlayedStreamUrl, isNotNull);
+
+      await tester.tap(cairoCard);
+      await pumpScreen(tester);
+
+      expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
+      expect(quranCubit.state.activeStation, isNull);
+
+      quranCubit.close();
+    });
 
     testWidgets(
       '6b. Official live stream cards remain clear on compact mobile width',
@@ -799,15 +854,17 @@ void main() {
         expect(storedLastRead['g'], lastReadBeforeStation);
         expect(quranCubit.state.lastRead?.global, lastReadBeforeStation);
 
-        // 3. Play unverified station (Cairo) -> Sets graceful failure state with notes
+        // 3. Switch to another verified station (Cairo)
         final cairoStation = QuranAudioStation.defaultCatalog.firstWhere(
           (s) => s.id == 'radio_cairo',
         );
-        expect(cairoStation.isPlayable, isFalse);
+        expect(cairoStation.isPlayable, isTrue);
         await quranCubit.playStation(cairoStation);
 
-        expect(quranCubit.state.audioStatus, QuranAudioStatus.failure);
-        expect(quranCubit.state.error, cairoStation.notes);
+        expect(quranCubit.state.audioStatus, QuranAudioStatus.playing);
+        expect(quranCubit.state.activeStation, cairoStation);
+        expect(audioService.lastPlayedStreamUrl, cairoStation.streamUrl);
+        expect(quranCubit.state.error, isNull);
 
         // 4. Switch back to Ayah recitation -> station is cleared and stream stopped
         await quranCubit.playAyah(1);

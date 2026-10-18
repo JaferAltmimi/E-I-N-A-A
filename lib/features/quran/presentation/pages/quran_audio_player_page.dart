@@ -36,14 +36,6 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
   String _reciterFilter = '';
   String? _openingLiveId;
 
-  // Requested reciters that are NOT currently in AppConstants.reciters catalog
-  static const List<String> _pendingRequestedReciters = [
-    'بندر بليلة',
-    'عبدالله عواد الجهني',
-    'ناصر القطامي',
-    'ياسر الدوسري',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -130,12 +122,6 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
               .where((r) => r.name.contains(_reciterFilter))
               .toList(growable: false);
 
-    final filteredPending = _reciterFilter.isEmpty
-        ? _pendingRequestedReciters
-        : _pendingRequestedReciters
-              .where((r) => r.contains(_reciterFilter))
-              .toList(growable: false);
-
     return ListView(
       padding: MishkatSpacing.page,
       children: [
@@ -202,7 +188,7 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'جودة الصوت: ${activeReciter.bitrate} kbps · خادم CDN موثق',
+                          '${activeReciter.bitrate} kbps · ${activeReciter.sourceLabel}',
                           style: TextStyle(
                             fontSize: 12,
                             color: colors.textSecondary,
@@ -235,12 +221,12 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
         ),
         const SizedBox(height: MishkatSpacing.lg),
 
-        // Verified Reciters Header
+        // Available Reciters Header
         Row(
           children: [
             Expanded(
               child: Text(
-                'القراء المعتمدون (${filteredReciters.length})',
+                'القراء المتاحون (${filteredReciters.length})',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -255,7 +241,7 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
                 borderRadius: BorderRadius.circular(MishkatRadius.xs),
               ),
               child: Text(
-                'خادم CDN نشط',
+                'تشغيل مباشر',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -284,52 +270,24 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
                     _showSurahPickerSheet(context, quranData, reciter);
                   },
           ),
-
-        // Pending / Gap Reciters Section
-        if (filteredPending.isNotEmpty) ...[
-          const SizedBox(height: MishkatSpacing.xl),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'قراء مطلوبون (بانتظار المصدر الموثق)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: colors.textSecondary,
-                  ),
+        if (filteredReciters.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: MishkatSpacing.xl),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.search_off_rounded,
+                  size: 36,
+                  color: colors.textMuted,
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.warning.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(MishkatRadius.xs),
+                const SizedBox(height: MishkatSpacing.sm),
+                Text(
+                  'لا يوجد قارئ بهذا الاسم',
+                  style: TextStyle(color: colors.textSecondary),
                 ),
-                child: Text(
-                  'غير متاح حالياً',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: colors.warning,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: MishkatSpacing.xs),
-          Text(
-            'تطبيق مشكاة يعتمد الشفافية التامة ولا يوفر روابط وهمية للتلاوة دون توثيق خادم CDN.',
-            style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
-          ),
-          const SizedBox(height: MishkatSpacing.sm),
-          for (final name in filteredPending)
-            _PendingReciterTile(
-              name: name,
-              onTap: () => _showPendingReciterDialog(context, name),
+              ],
             ),
-        ],
+          ),
       ],
     );
   }
@@ -402,7 +360,7 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
               const SizedBox(width: MishkatSpacing.sm),
               Expanded(
                 child: Text(
-                  'إذاعات القرآن الكريم الرسمية في العالم الإسلامي، بأصوات كبار القراء.',
+                  '${radios.length} محطات قرآنية مباشرة من مصادر رسمية وموثوقة.',
                   style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
                 ),
               ),
@@ -456,6 +414,15 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
 
   void _handleStationPlay(BuildContext context, QuranAudioStation station) {
     final cubit = context.read<QuranCubit>();
+    final isActive =
+        cubit.state.activeStation?.id == station.id &&
+        cubit.state.audioStatus == QuranAudioStatus.playing;
+
+    if (isActive) {
+      cubit.stopAudio();
+      return;
+    }
+
     if (!station.isPlayable) {
       showDialog<void>(
         context: context,
@@ -502,25 +469,6 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
     }
 
     cubit.playStation(station);
-  }
-
-  void _showPendingReciterDialog(BuildContext context, String name) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(name),
-        content: const Text(
-          'هذا القارئ ضمن القائمة المطلوبة في التحديثات القادمة، وبانتظار اعتماد خادم CDN رسمي موثوق يوفر تلاوة كاملة لآيات القرآن الكريم مجزأة ومزامنة.\n\nتطبيق مشكاة يلتزم بعدم تشغيل ملفات غير موثقة حفاظاً على دقة التلاوة.',
-          style: TextStyle(fontSize: 13, height: 1.6),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('فهمت ذلك'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showSurahPickerSheet(
@@ -677,7 +625,7 @@ class _ReciterTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${reciter.bitrate} kbps · مرتل معتمد',
+                    '${reciter.bitrate} kbps · ${reciter.sourceLabel}',
                     style: TextStyle(fontSize: 12, color: colors.textSecondary),
                   ),
                 ],
@@ -693,68 +641,6 @@ class _ReciterTile extends StatelessWidget {
                 ),
                 onPressed: onPlaySurah,
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PendingReciterTile extends StatelessWidget {
-  const _PendingReciterTile({required this.name, required this.onTap});
-
-  final String name;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.mishkat;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: MishkatSpacing.xs),
-      child: MishkatCard(
-        padding: const EdgeInsets.symmetric(
-          horizontal: MishkatSpacing.md,
-          vertical: MishkatSpacing.sm,
-        ),
-        onTap: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: colors.surfaceVariant,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person_off_outlined,
-                color: colors.textSecondary,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: MishkatSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'بانتظار توثيق خادم التلاوات',
-                    style: TextStyle(fontSize: 11, color: Colors.orange),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.info_outline_rounded, size: 18, color: colors.textMuted),
           ],
         ),
       ),
@@ -1126,13 +1012,28 @@ class _StationCard extends StatelessWidget {
                     station.subtitle,
                     style: TextStyle(fontSize: 12, color: colors.textSecondary),
                   ),
-                  if (station.country != null) ...[
+                  if (station.sourceLabel != null) ...[
                     const SizedBox(height: 2),
-                    Text(
-                      station.city != null
-                          ? '${station.country} · ${station.city}'
-                          : station.country!,
-                      style: TextStyle(fontSize: 11, color: colors.textMuted),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.verified_rounded,
+                          size: 13,
+                          color: colors.gold,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            station.sourceLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],

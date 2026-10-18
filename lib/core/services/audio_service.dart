@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:just_audio/just_audio.dart';
 
@@ -20,6 +22,9 @@ class QuranAudioUrlBuilder {
   const QuranAudioUrlBuilder._();
 
   static const String defaultCdnHost = 'https://cdn.islamic.network';
+  static const String everyAyahHost = 'https://everyayah.com/data';
+  static const String quranicAudioHost =
+      'https://download.quranicaudio.com/quran';
 
   static String buildUrl({
     required String reciter,
@@ -28,17 +33,130 @@ class QuranAudioUrlBuilder {
   }) {
     final safeAyah = globalAyah.clamp(1, AppConstants.totalAyahs);
     final reciterInfo = AppConstants.findReciter(reciter);
-    return '$cdnHost/quran/audio/${reciterInfo.bitrate}/${reciterInfo.id}/$safeAyah.mp3';
+    final address = QuranAyahIndex.fromGlobal(safeAyah);
+
+    return switch (reciterInfo.source) {
+      ReciterAudioSource.alQuranCloud =>
+        '$cdnHost/quran/audio/${reciterInfo.bitrate}/${reciterInfo.id}/$safeAyah.mp3',
+      ReciterAudioSource.everyAyah =>
+        '$everyAyahHost/${reciterInfo.audioPath}/${address.surah.toString().padLeft(3, '0')}${address.ayah.toString().padLeft(3, '0')}.mp3',
+      ReciterAudioSource.segmentedSurah =>
+        '$quranicAudioHost/${reciterInfo.audioPath}/${address.surah.toString().padLeft(3, '0')}.mp3',
+    };
   }
 }
 
+class QuranAudioSegment {
+  const QuranAudioSegment({
+    required this.audioUrl,
+    required this.start,
+    required this.end,
+  });
+
+  final String audioUrl;
+  final Duration start;
+  final Duration end;
+}
+
+/// Resolves timestamped Ayahs inside a continuous Surah recording.
+///
+/// QUL publishes the audio URL and verified Ayah boundaries. A full Surah is
+/// fetched only by the player; this resolver caches its small metadata response.
+class QuranAudioSegmentResolver {
+  QuranAudioSegmentResolver({HttpClient? httpClient})
+    : _client = httpClient ?? HttpClient();
+
+  static const _apiHost = 'https://qul.tarteel.ai';
+
+  final HttpClient _client;
+  final Map<String, Map<int, QuranAudioSegment>> _chapterCache = {};
+
+  Future<QuranAudioSegment> resolve({
+    required ReciterInfo reciter,
+    required QuranAyahAddress address,
+  }) async {
+    final recitationId = reciter.segmentRecitationId;
+    if (recitationId == null) {
+      throw StateError('Missing segment recitation ID for ${reciter.id}.');
+    }
+
+    final cacheKey = '$recitationId:${address.surah}';
+    var chapter = _chapterCache[cacheKey];
+    if (chapter == null) {
+      chapter = await _loadChapter(
+        recitationId: recitationId,
+        surah: address.surah,
+      );
+      _chapterCache[cacheKey] = chapter;
+    }
+
+    final segment = chapter[address.ayah];
+    if (segment == null) {
+      throw StateError('Missing segment for ${address.surah}:${address.ayah}.');
+    }
+    return segment;
+  }
+
+  Future<Map<int, QuranAudioSegment>> _loadChapter({
+    required int recitationId,
+    required int surah,
+  }) async {
+    final ayahCount = QuranAyahIndex.ayahsPerSurah[surah - 1];
+    final uri = Uri.parse(
+      '$_apiHost/api/v1/audio/surah_segments/$recitationId'
+      '?surah=$surah&per_page=$ayahCount',
+    );
+    final request = await _client.getUrl(uri);
+    final response = await request.close();
+    if (response.statusCode != HttpStatus.ok) {
+      await response.drain<void>();
+      throw HttpException('Segment server returned ${response.statusCode}.');
+    }
+
+    final body = await utf8.decoder.bind(response).join();
+    final json = jsonDecode(body) as Map<String, dynamic>;
+    final audio = Map<String, dynamic>.from(json['audio'] as Map);
+    final audioUrl = audio['url'] as String;
+    final rawSegments = Map<String, dynamic>.from(json['segments'] as Map);
+    final result = <int, QuranAudioSegment>{};
+
+    for (final entry in rawSegments.entries) {
+      final verseKey = entry.key.split(':');
+      if (verseKey.length != 2) continue;
+      final ayah = int.tryParse(verseKey[1]);
+      if (ayah == null) continue;
+      final value = Map<String, dynamic>.from(entry.value as Map);
+      final fromMs = (value['time_from'] as num).toInt();
+      final toMs = (value['time_to'] as num).toInt();
+      if (toMs <= fromMs) continue;
+      result[ayah] = QuranAudioSegment(
+        audioUrl: audioUrl,
+        start: Duration(milliseconds: fromMs),
+        end: Duration(milliseconds: toMs),
+      );
+    }
+
+    if (result.isEmpty) {
+      throw const FormatException('Segment response contains no Ayahs.');
+    }
+    return result;
+  }
+
+  void dispose() => _client.close(force: true);
+}
+
 class QuranAudioService {
-  QuranAudioService({AudioPlayer? player, QuranAudioCacheService? cacheService})
-    : _player = player ?? AudioPlayer(),
-      _cache = cacheService ?? QuranAudioCacheService();
+  QuranAudioService({
+    AudioPlayer? player,
+    QuranAudioCacheService? cacheService,
+    QuranAudioSegmentResolver? segmentResolver,
+  }) : _player = player ?? AudioPlayer(),
+       _cache = cacheService ?? QuranAudioCacheService(),
+       _segmentResolver = segmentResolver ?? QuranAudioSegmentResolver();
 
   final AudioPlayer _player;
   final QuranAudioCacheService _cache;
+  final QuranAudioSegmentResolver _segmentResolver;
   int _activeRequestId = 0;
 
   Stream<PlayerState> get playerState => _player.playerStateStream;
@@ -63,6 +181,31 @@ class QuranAudioService {
   }) async {
     final requestId = ++_activeRequestId;
     final safeAyah = globalAyah.clamp(1, AppConstants.totalAyahs);
+    final reciterInfo = AppConstants.findReciter(reciter);
+
+    if (reciterInfo.source == ReciterAudioSource.segmentedSurah) {
+      final isOnline = await _cache.isNetworkAvailable();
+      if (!isOnline) {
+        throw const QuranAudioOfflineException(
+          'هذه التلاوة المتصلة تحتاج إلى اتصال بالإنترنت.',
+        );
+      }
+      final segment = await _segmentResolver.resolve(
+        reciter: reciterInfo,
+        address: QuranAyahIndex.fromGlobal(safeAyah),
+      );
+      if (requestId != _activeRequestId) return;
+      await _player.setAudioSource(
+        ClippingAudioSource(
+          child: AudioSource.uri(Uri.parse(segment.audioUrl)),
+          start: segment.start,
+          end: segment.end,
+        ),
+      );
+      if (requestId != _activeRequestId) return;
+      unawaited(_player.play());
+      return;
+    }
 
     // 1. Try local cache
     final localFile = await _cache.getCachedFile(
@@ -128,6 +271,7 @@ class QuranAudioService {
 
   Future<void> dispose() async {
     _activeRequestId++;
+    _segmentResolver.dispose();
     await _player.dispose();
   }
 }

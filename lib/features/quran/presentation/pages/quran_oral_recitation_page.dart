@@ -84,6 +84,9 @@ class _QuranOralRecitationView extends StatefulWidget {
 
 class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     with WidgetsBindingObserver {
+  final Map<int, GlobalKey> _ayahKeys = <int, GlobalKey>{};
+  int? _lastFocusedGlobalAyah;
+
   @override
   void initState() {
     super.initState();
@@ -106,7 +109,6 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
   @override
   Widget build(BuildContext context) {
     final colors = context.mishkat;
-    final theme = Theme.of(context);
 
     return BlocConsumer<QuranOralRecitationCubit, QuranOralRecitationState>(
       listener: (context, state) {
@@ -135,36 +137,13 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
         }
         return Scaffold(
           appBar: AppBar(
-            title: Column(
-              children: [
-                Text(
-                  'التسميع الشفهي الذكي',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  '${state.surahName} · الآيات ${state.startGlobalAyah} - ${state.endGlobalAyah}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: colors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+            title: const Text(
+              'التسميع الشفهي الذكي',
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
-            actions: [
-              IconButton(
-                tooltip: 'إنهاء الجلسة',
-                icon: const Icon(Icons.check_circle_outline_rounded),
-                onPressed: state.hasActiveSession
-                    ? () => context
-                          .read<QuranOralRecitationCubit>()
-                          .finishSession()
-                    : null,
-              ),
-            ],
+            centerTitle: true,
           ),
+          backgroundColor: colors.background,
           body: SafeArea(
             child: state.lifecycle.isCompleted
                 ? _buildCompletedView(context, state)
@@ -188,6 +167,12 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     QuranOralRecitationState state,
   ) {
     final colors = context.mishkat;
+    final startAyah = state.targetWords.isEmpty
+        ? state.startGlobalAyah
+        : state.targetWords.first.ayahInSurah;
+    final endAyah = state.targetWords.isEmpty
+        ? state.endGlobalAyah
+        : state.targetWords.last.ayahInSurah;
 
     final badgeColor = switch (state.lifecycle) {
       OralRecitationLifecycle.listening => colors.primary,
@@ -215,60 +200,25 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
       _ => 'جاهز للتسميع',
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(
-          bottom: BorderSide(color: colors.borderSubtle, width: 1),
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.12),
-                    borderRadius: MishkatRadius.brSm,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (state.lifecycle.isListening)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: badgeColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      Flexible(
-                        child: Text(
-                          badgeLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: badgeColor,
-                          ),
-                        ),
-                      ),
-                    ],
+              Expanded(
+                child: Text(
+                  '${state.surahName} · الآيات $startAyah - $endAyah',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
-              const Spacer(),
               Icon(Icons.timer_outlined, size: 14, color: colors.textSecondary),
               const SizedBox(width: 4),
               Text(
@@ -281,26 +231,44 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                   color: colors.textSecondary,
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                '${state.progressPercentage.toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: colors.primary,
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 9),
           ClipRRect(
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: MishkatRadius.brPill,
             child: LinearProgressIndicator(
               value: (state.progressPercentage / 100.0).clamp(0.0, 1.0),
-              minHeight: 4,
+              minHeight: 5,
               backgroundColor: colors.borderSubtle,
               valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
             ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                badgeLabel,
+                style: TextStyle(
+                  color: badgeColor,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${state.progressPercentage.toStringAsFixed(0)}٪ مكتمل',
+                style: TextStyle(color: colors.textSecondary, fontSize: 11),
+              ),
+            ],
           ),
         ],
       ),
@@ -323,177 +291,374 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     if (isPermissionGate) {
       return Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: _buildPermissionGateCard(context, state),
         ),
       );
     }
 
-    // Group aligned words by Ayah
     final ayahsMap = <int, List<RecitationWordAlignment>>{};
     for (final word in state.alignedWords) {
       ayahsMap
           .putIfAbsent(word.authoritativeWord.globalAyah, () => [])
           .add(word);
     }
+    if (ayahsMap.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: colors.primary),
+            const SizedBox(height: 12),
+            Text(
+              'جارٍ تجهيز جلسة التسميع...',
+              style: TextStyle(color: colors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: ayahsMap.length,
-      itemBuilder: (context, index) {
-        final globalAyah = ayahsMap.keys.elementAt(index);
-        final words = ayahsMap[globalAyah]!;
-        final isCurrent = globalAyah == state.currentGlobalAyah;
-        final isRevealed = state.revealedGlobals.contains(globalAyah);
-        final isCompleted = state.completedGlobalAyahs.contains(globalAyah);
-        final hasMistake = words.any(
-          (word) =>
-              word.status == WordAlignmentStatus.omission ||
-              word.status == WordAlignmentStatus.substitution,
+    final currentGlobal = ayahsMap.containsKey(state.currentGlobalAyah)
+        ? state.currentGlobalAyah
+        : ayahsMap.keys.first;
+    final isRevealed = state.revealedGlobals.contains(currentGlobal);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pageColor = isDark ? colors.surface : const Color(0xFFFFFCF4);
+
+    if (_lastFocusedGlobalAyah != currentGlobal) {
+      _lastFocusedGlobalAyah = currentGlobal;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final ayahContext = _ayahKeys[currentGlobal]?.currentContext;
+        if (ayahContext == null) return;
+        Scrollable.ensureVisible(
+          ayahContext,
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+          alignment: .28,
         );
+      });
+    }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: MishkatCard(
-            color: isCurrent
-                ? colors.primarySoft.withValues(alpha: 0.35)
-                : colors.surface,
-            padding: const EdgeInsets.all(14),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: colors.primary.withValues(alpha: .08),
+            borderRadius: MishkatRadius.brXl,
+            boxShadow: MishkatShadows.elevated(context),
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+            decoration: BoxDecoration(
+              color: pageColor,
+              borderRadius: BorderRadius.circular(MishkatRadius.xl - 4),
+              border: Border.all(color: colors.primary.withValues(alpha: .3)),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Ayah Header
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors.primarySoft,
-                        borderRadius: MishkatRadius.brSm,
-                      ),
-                      child: Text(
-                        'الآية ${words.first.authoritativeWord.ayahInSurah}',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
+                    SizedBox(
+                      width: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        tooltip: isRevealed ? 'إخفاء الآية' : 'كشف الآية',
+                        icon: Icon(
+                          isRevealed
+                              ? Icons.visibility_rounded
+                              : Icons.visibility_off_outlined,
                           color: colors.primary,
+                          size: 20,
                         ),
+                        onPressed: () {
+                          final cubit = context
+                              .read<QuranOralRecitationCubit>();
+                          if (isRevealed) {
+                            cubit.hideAyah(currentGlobal);
+                          } else {
+                            cubit.revealAyah(currentGlobal);
+                          }
+                        },
                       ),
                     ),
-                    if (isCompleted) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
+                    Expanded(
+                      child: _buildSurahNameplate(context, state.surahName),
+                    ),
+                    const SizedBox(width: 40),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'من الآية ${ayahsMap.values.first.first.authoritativeWord.ayahInSurah} إلى الآية ${ayahsMap.values.last.first.authoritativeWord.ayahInSurah}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: colors.primary.withValues(alpha: .22),
                         ),
-                        decoration: BoxDecoration(
-                          color: (hasMistake ? colors.error : colors.success)
-                              .withValues(alpha: .12),
-                          borderRadius: MishkatRadius.brPill,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 13,
+                          color: colors.primary.withValues(alpha: .7),
                         ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: colors.primary.withValues(alpha: .22),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                for (final entry in ayahsMap.entries)
+                  _buildMushafAyah(
+                    context,
+                    words: entry.value,
+                    isCurrent: entry.key == currentGlobal,
+                    isCompleted: state.completedGlobalAyahs.contains(entry.key),
+                    isRevealed: state.revealedGlobals.contains(entry.key),
+                  ),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: .06),
+                    borderRadius: MishkatRadius.brSm,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        state.lifecycle.isListening
+                            ? Icons.graphic_eq_rounded
+                            : Icons.mic_none_rounded,
+                        size: 17,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 7),
+                      Flexible(
                         child: Text(
-                          hasMistake ? 'راجع الملوّن بالأحمر' : 'تمت الآية',
+                          state.lifecycle.isListening
+                              ? 'تظهر الكلمات تباعاً مع تلاوتك'
+                              : state.lifecycle.isPaused
+                              ? 'التسميع متوقف مؤقتاً'
+                              : 'اضغط بدء التسميع واقرأ من حفظك',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 10.5,
+                            color: colors.primaryStrong,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
-                            color: hasMistake ? colors.error : colors.success,
                           ),
                         ),
                       ),
                     ],
-                    const Spacer(),
-                    IconButton(
-                      iconSize: 18,
-                      tooltip: isRevealed ? 'إخفاء النص' : 'كشف النص الأصلي',
-                      icon: Icon(
-                        isRevealed
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_outlined,
-                        color: isRevealed
-                            ? colors.primary
-                            : colors.textSecondary,
-                      ),
-                      onPressed: () {
-                        final cubit = context.read<QuranOralRecitationCubit>();
-                        if (isRevealed) {
-                          cubit.hideAyah(globalAyah);
-                        } else {
-                          cubit.revealAyah(globalAyah);
-                        }
-                      },
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                // Keep the Ayah fully hidden during recall. Once the recognizer
-                // completes it, reveal the authoritative words and mark errors.
-                if (isRevealed && !isCompleted)
-                  Text(
-                    words.map((w) => w.authoritativeWord.uthmaniText).join(' '),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Amiri',
-                      fontSize: 22,
-                      height: 1.8,
-                      color: colors.textPrimary,
-                    ),
-                  )
-                else if (isCompleted)
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: words
-                        .map((w) => _buildWordChip(context, w))
-                        .toList(),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 18,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceVariant.withValues(alpha: .55),
-                      borderRadius: MishkatRadius.brMd,
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          isCurrent
-                              ? Icons.graphic_eq_rounded
-                              : Icons.visibility_off_outlined,
-                          color: isCurrent
-                              ? colors.primary
-                              : colors.textSecondary,
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          isCurrent
-                              ? 'اقرأ الآية من حفظك… سنكشفها عند اكتمالها'
-                              : 'تظهر هذه الآية عندما يحين دورها',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 12.5,
-                            fontWeight: isCurrent
-                                ? FontWeight.w700
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
+  Widget _buildSurahNameplate(BuildContext context, String surahName) {
+    final colors = context.mishkat;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: .08),
+        borderRadius: MishkatRadius.brMd,
+        border: Border.all(color: colors.primary.withValues(alpha: .18)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.diamond_outlined,
+            size: 12,
+            color: colors.primary.withValues(alpha: .65),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'سورة $surahName',
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: colors.primaryStrong,
+                fontFamily: 'Amiri',
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.diamond_outlined,
+            size: 12,
+            color: colors.primary.withValues(alpha: .65),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMushafAyah(
+    BuildContext context, {
+    required List<RecitationWordAlignment> words,
+    required bool isCurrent,
+    required bool isCompleted,
+    required bool isRevealed,
+  }) {
+    final colors = context.mishkat;
+    final hasMistake = words.any(
+      (word) =>
+          word.status == WordAlignmentStatus.omission ||
+          word.status == WordAlignmentStatus.substitution,
+    );
+    final showAll = isCompleted || isRevealed;
+
+    return AnimatedContainer(
+      key: _ayahKeys.putIfAbsent(
+        words.first.authoritativeWord.globalAyah,
+        GlobalKey.new,
+      ),
+      duration: const Duration(milliseconds: 220),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 11),
+      decoration: BoxDecoration(
+        color: isCurrent
+            ? colors.primary.withValues(alpha: .065)
+            : Colors.transparent,
+        borderRadius: MishkatRadius.brMd,
+        border: isCurrent
+            ? Border.all(color: colors.primary.withValues(alpha: .16))
+            : null,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        textDirection: TextDirection.rtl,
+        children: [
+          _AyahNumberMedallion(
+            number: words.first.authoritativeWord.ayahInSurah,
+            isCurrent: isCurrent,
+            isCompleted: isCompleted,
+            hasMistake: hasMistake,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 5,
+              runSpacing: 8,
+              textDirection: TextDirection.rtl,
+              alignment: WrapAlignment.start,
+              children: [
+                for (final word in words)
+                  _buildProgressiveMushafWord(
+                    context,
+                    word,
+                    showWord:
+                        showAll ||
+                        (isCurrent &&
+                            word.status != WordAlignmentStatus.upcoming),
                   ),
               ],
             ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressiveMushafWord(
+    BuildContext context,
+    RecitationWordAlignment word, {
+    required bool showWord,
+  }) {
+    final colors = context.mishkat;
+    if (!showWord) {
+      final width = 14.0 + ((word.authoritativeWord.wordIndex % 3) * 6);
+      return AnimatedContainer(
+        key: ValueKey('hidden-${word.authoritativeWord.wordIndex}'),
+        duration: const Duration(milliseconds: 180),
+        width: width,
+        height: 6,
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.borderSubtle.withValues(alpha: .75),
+          borderRadius: MishkatRadius.brPill,
+        ),
+      );
+    }
+
+    final Color foreground = switch (word.status) {
+      WordAlignmentStatus.omission ||
+      WordAlignmentStatus.substitution => colors.error,
+      WordAlignmentStatus.uncertain => Colors.orange.shade800,
+      WordAlignmentStatus.repetition => Colors.blue.shade700,
+      _ => colors.textPrimary,
+    };
+    final isMistake =
+        word.status == WordAlignmentStatus.omission ||
+        word.status == WordAlignmentStatus.substitution;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: word.status == WordAlignmentStatus.upcoming
+            ? null
+            : () => _showDiscrepancyDetail(context, word),
+        borderRadius: MishkatRadius.brXs,
+        child: AnimatedContainer(
+          key: ValueKey('word-${word.authoritativeWord.wordIndex}'),
+          duration: const Duration(milliseconds: 180),
+          padding: isMistake
+              ? const EdgeInsets.symmetric(horizontal: 3)
+              : EdgeInsets.zero,
+          decoration: BoxDecoration(
+            color: isMistake
+                ? colors.error.withValues(alpha: .09)
+                : Colors.transparent,
+            borderRadius: MishkatRadius.brXs,
+          ),
+          child: Text(
+            word.authoritativeWord.uthmaniText,
+            textDirection: TextDirection.rtl,
+            style: TextStyle(
+              color: foreground,
+              fontFamily: 'Amiri',
+              fontSize: 22,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+              decoration: isMistake ? TextDecoration.underline : null,
+              decorationColor: colors.error,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -690,95 +855,50 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildWordChip(BuildContext context, RecitationWordAlignment word) {
-    final colors = context.mishkat;
-
-    Color bg;
-    Color fg;
-    Border? border;
-
-    switch (word.status) {
-      case WordAlignmentStatus.matched:
-        bg = colors.primarySoft;
-        fg = colors.primaryStrong;
-        break;
-      case WordAlignmentStatus.omission:
-        bg = Colors.red.withValues(alpha: 0.12);
-        fg = Colors.red.shade800;
-        border = Border.all(color: Colors.red.shade400, width: 1);
-        break;
-      case WordAlignmentStatus.substitution:
-        bg = Colors.red.shade700;
-        fg = Colors.white;
-        break;
-      case WordAlignmentStatus.uncertain:
-        bg = Colors.amber.withValues(alpha: 0.2);
-        fg = Colors.amber.shade900;
-        border = Border.all(color: Colors.amber.shade600, width: 1);
-        break;
-      case WordAlignmentStatus.repetition:
-        bg = Colors.blue.withValues(alpha: 0.15);
-        fg = Colors.blue.shade900;
-        break;
-      case WordAlignmentStatus.upcoming:
-        bg = colors.surfaceVariant.withValues(alpha: 0.6);
-        fg = colors.textSecondary.withValues(alpha: 0.6);
-        break;
-    }
-
-    final displayText = word.status.isUpcoming
-        ? '••••'
-        : word.authoritativeWord.uthmaniText;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: !word.status.isUpcoming
-          ? () => _showDiscrepancyDetail(context, word)
-          : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(6),
-          border: border,
-        ),
-        child: Text(
-          displayText,
-          style: TextStyle(
-            fontFamily: word.status.isUpcoming ? 'Cairo' : 'Amiri',
-            fontSize: word.status.isUpcoming ? 12 : 18,
-            fontWeight: FontWeight.bold,
-            color: fg,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTranscriptTicker(
     BuildContext context,
     QuranOralRecitationState state,
   ) {
     final colors = context.mishkat;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: colors.surfaceVariant.withValues(alpha: 0.5),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.primarySoft,
+        borderRadius: MishkatRadius.brMd,
+      ),
       child: Row(
         children: [
-          Icon(Icons.graphic_eq_rounded, size: 16, color: colors.primary),
-          const SizedBox(width: 8),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: .12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.graphic_eq_rounded,
+              size: 16,
+              color: colors.primary,
+            ),
+          ),
+          const SizedBox(width: 9),
           const Text(
             'مسموع: ',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
           ),
           Expanded(
             child: Text(
               state.liveTranscript,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: 12,
+                color: colors.textSecondary,
+                height: 1.3,
+              ),
             ),
           ),
         ],
@@ -794,74 +914,57 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     final isBusy =
         state.lifecycle.isRequestingPermission ||
         state.lifecycle.isInitializingSpeechEngine;
+    final isListening = state.lifecycle == OralRecitationLifecycle.listening;
+    final isPaused = state.lifecycle == OralRecitationLifecycle.paused;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+    final mainLabel = isListening
+        ? 'إيقاف مؤقت'
+        : isPaused
+        ? 'متابعة'
+        : isBusy
+        ? 'جارٍ التجهيز...'
+        : 'بدء التسميع';
+    final mainIcon = isListening
+        ? Icons.pause_rounded
+        : isPaused
+        ? Icons.mic_rounded
+        : Icons.mic_none_rounded;
+    final VoidCallback? mainAction = isBusy
+        ? null
+        : isListening
+        ? cubit.pauseRecitation
+        : isPaused
+        ? cubit.resumeRecitation
+        : cubit.startRecitation;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+      decoration: BoxDecoration(
+        color: context.mishkat.surface,
+        border: Border(
+          top: BorderSide(color: context.mishkat.borderSubtle, width: .7),
+        ),
+      ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Secondary: Stop / Finish
-          Expanded(
-            flex: 2,
-            child: MishkatSecondaryAction(
-              label: 'إنهاء',
-              icon: const Icon(Icons.stop_rounded),
-              isFullWidth: true,
-              onPressed: state.hasActiveSession
-                  ? () => cubit.finishSession()
-                  : null,
-            ),
+          _SessionSideAction(
+            icon: Icons.stop_circle_outlined,
+            label: 'إنهاء',
+            onTap: state.hasActiveSession ? cubit.finishSession : null,
           ),
-          const SizedBox(width: 8),
-
-          // Primary: Start / Pause / Resume
-          Expanded(
-            flex: 3,
-            child: state.lifecycle == OralRecitationLifecycle.listening
-                ? MishkatPrimaryAction(
-                    label: 'إيقاف مؤقت',
-                    icon: const Icon(Icons.pause_rounded),
-                    isFullWidth: true,
-                    onPressed: () => cubit.pauseRecitation(),
-                  )
-                : state.lifecycle == OralRecitationLifecycle.paused
-                ? MishkatPrimaryAction(
-                    label: 'متابعة',
-                    icon: const Icon(Icons.mic_rounded),
-                    isFullWidth: true,
-                    onPressed: () => cubit.resumeRecitation(),
-                  )
-                : isBusy
-                ? MishkatPrimaryAction(
-                    label: 'جارٍ التجهيز...',
-                    icon: const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                    isFullWidth: true,
-                    onPressed: null,
-                  )
-                : MishkatPrimaryAction(
-                    label: 'بدء التسميع',
-                    icon: const Icon(Icons.mic_rounded),
-                    isFullWidth: true,
-                    onPressed: () => cubit.startRecitation(),
-                  ),
+          _SessionMicAction(
+            label: mainLabel,
+            icon: mainIcon,
+            isBusy: isBusy,
+            isListening: isListening,
+            onTap: mainAction,
           ),
-          const SizedBox(width: 8),
-
-          // Reveal current
-          Expanded(
-            flex: 2,
-            child: MishkatSecondaryAction(
-              label: 'كشف',
-              icon: const Icon(Icons.visibility_rounded),
-              isFullWidth: true,
-              onPressed: () => cubit.revealAyah(state.currentGlobalAyah),
-            ),
+          _SessionSideAction(
+            icon: Icons.visibility_outlined,
+            label: 'كشف الآية',
+            onTap: () => cubit.revealAyah(state.currentGlobalAyah),
           ),
         ],
       ),
@@ -1162,6 +1265,213 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
+    );
+  }
+}
+
+class _AyahNumberMedallion extends StatelessWidget {
+  const _AyahNumberMedallion({
+    required this.number,
+    required this.isCurrent,
+    required this.isCompleted,
+    required this.hasMistake,
+  });
+
+  final int number;
+  final bool isCurrent;
+  final bool isCompleted;
+  final bool hasMistake;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    final accent = hasMistake
+        ? colors.error
+        : isCompleted
+        ? colors.success
+        : colors.primary;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      width: 35,
+      height: 35,
+      decoration: BoxDecoration(
+        color: isCurrent || isCompleted
+            ? accent.withValues(alpha: .1)
+            : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: accent.withValues(alpha: isCurrent ? .7 : .35),
+          width: isCurrent ? 1.4 : 1,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            '$number',
+            style: TextStyle(
+              color: accent,
+              fontFamily: 'Amiri',
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (isCompleted)
+            PositionedDirectional(
+              end: -1,
+              bottom: -1,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.surface, width: 1.5),
+                ),
+              ),
+            ),
+          if (isCurrent && !isCompleted)
+            PositionedDirectional(
+              end: 3,
+              bottom: 2,
+              child: Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SessionSideAction extends StatelessWidget {
+  const _SessionSideAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    final foreground = onTap == null
+        ? colors.textSecondary.withValues(alpha: .42)
+        : colors.textSecondary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: MishkatRadius.brMd,
+        child: SizedBox(
+          width: 70,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 23, color: foreground),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionMicAction extends StatelessWidget {
+  const _SessionMicAction({
+    required this.label,
+    required this.icon,
+    required this.isBusy,
+    required this.isListening,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isBusy;
+  final bool isListening;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: MishkatRadius.brLg,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: isListening ? colors.primaryDark : colors.primary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: .25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: isBusy
+                    ? const Center(
+                        child: SizedBox(
+                          width: 21,
+                          height: 21,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.3,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Icon(icon, color: Colors.white, size: 29),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  color: isBusy ? colors.textSecondary : colors.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

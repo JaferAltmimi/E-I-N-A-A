@@ -162,9 +162,16 @@ void main() {
     await tester.tap(quranTab.first);
     await tester.pumpAndSettle();
 
-    // Find and tap oral recitation entry button on Section C
+    // Open the dedicated memorization destination, then start oral recitation.
+    // Secondary practice tools intentionally live there to keep Quran home calm.
+    final memorizationButton = find.text('لوحة التحفيظ');
+    expect(memorizationButton, findsOneWidget);
+    await tester.tap(memorizationButton);
+    await tester.pumpAndSettle();
+
     final oralInfoButton = find.text('ميزة التسميع الشفهي والاستماع الذكي');
     expect(oralInfoButton, findsOneWidget);
+    await tester.ensureVisible(oralInfoButton);
     await tester.tap(oralInfoButton);
     await tester.pumpAndSettle();
 

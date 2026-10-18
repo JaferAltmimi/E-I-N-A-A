@@ -78,7 +78,8 @@ class _QuranOralRecitationView extends StatefulWidget {
   const _QuranOralRecitationView();
 
   @override
-  State<_QuranOralRecitationView> createState() => _QuranOralRecitationViewState();
+  State<_QuranOralRecitationView> createState() =>
+      _QuranOralRecitationViewState();
 }
 
 class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
@@ -120,15 +121,17 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
       },
       builder: (context, state) {
         if (kDebugMode) {
-          debugPrint('[Q14_UI_RENDER] session=${state.sessionId} '
-              'ayah=${state.currentGlobalAyah} '
-              'wordIdx=${state.currentWordIndex} '
-              'committed=${state.committedTargetIndex} '
-              'matched=${state.matchedWordsCount} '
-              'omi=${state.omissionsCount} '
-              'sub=${state.substitutionsCount} '
-              'disc=${state.discrepancies.length} '
-              'liveTranscript="${state.liveTranscript}"');
+          debugPrint(
+            '[Q14_UI_RENDER] session=${state.sessionId} '
+            'ayah=${state.currentGlobalAyah} '
+            'wordIdx=${state.currentWordIndex} '
+            'committed=${state.committedTargetIndex} '
+            'matched=${state.matchedWordsCount} '
+            'omi=${state.omissionsCount} '
+            'sub=${state.substitutionsCount} '
+            'disc=${state.discrepancies.length} '
+            'liveTranscript="${state.liveTranscript}"',
+          );
         }
         return Scaffold(
           appBar: AppBar(
@@ -155,7 +158,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                 tooltip: 'إنهاء الجلسة',
                 icon: const Icon(Icons.check_circle_outline_rounded),
                 onPressed: state.hasActiveSession
-                    ? () => context.read<QuranOralRecitationCubit>().finishSession()
+                    ? () => context
+                          .read<QuranOralRecitationCubit>()
+                          .finishSession()
                     : null,
               ),
             ],
@@ -166,9 +171,7 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                 : Column(
                     children: [
                       _buildHeaderBanner(context, state),
-                      Expanded(
-                        child: _buildRecitationCanvas(context, state),
-                      ),
+                      Expanded(child: _buildRecitationCanvas(context, state)),
                       if (state.liveTranscript.isNotEmpty)
                         _buildTranscriptTicker(context, state),
                       _buildControlDock(context, state),
@@ -180,7 +183,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildHeaderBanner(BuildContext context, QuranOralRecitationState state) {
+  Widget _buildHeaderBanner(
+    BuildContext context,
+    QuranOralRecitationState state,
+  ) {
     final colors = context.mishkat;
 
     final badgeColor = switch (state.lifecycle) {
@@ -188,11 +194,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
       OralRecitationLifecycle.paused => Colors.orange,
       OralRecitationLifecycle.requestingPermission ||
       OralRecitationLifecycle.initializingSpeechEngine ||
-      OralRecitationLifecycle.permissionGranted =>
-        Colors.blue,
+      OralRecitationLifecycle.permissionGranted => Colors.blue,
       OralRecitationLifecycle.permissionDenied ||
-      OralRecitationLifecycle.permissionPermanentlyDenied =>
-        Colors.red,
+      OralRecitationLifecycle.permissionPermanentlyDenied => Colors.red,
       OralRecitationLifecycle.recognizerUnavailable => Colors.orange,
       _ => colors.textSecondary,
     };
@@ -202,9 +206,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
       OralRecitationLifecycle.paused => 'متوقف مؤقتاً',
       OralRecitationLifecycle.requestingPermission => 'جارٍ طلب الإذن...',
       OralRecitationLifecycle.permissionGranted => 'تم منح الإذن',
-      OralRecitationLifecycle.initializingSpeechEngine => 'جارٍ تهيئة المحرك...',
+      OralRecitationLifecycle.initializingSpeechEngine =>
+        'جارٍ تهيئة المحرك...',
       OralRecitationLifecycle.permissionDenied => 'الإذن مطلوب',
-      OralRecitationLifecycle.permissionPermanentlyDenied => 'مرفوض من الإعدادات',
+      OralRecitationLifecycle.permissionPermanentlyDenied =>
+        'مرفوض من الإعدادات',
       OralRecitationLifecycle.recognizerUnavailable => 'المحرك غير متاح',
       _ => 'جاهز للتسميع',
     };
@@ -223,7 +229,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
             children: [
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor.withValues(alpha: 0.12),
                     borderRadius: MishkatRadius.brSm,
@@ -263,7 +272,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
               Icon(Icons.timer_outlined, size: 14, color: colors.textSecondary),
               const SizedBox(width: 4),
               Text(
-                AppFormatters.duration(Duration(seconds: state.durationSeconds)),
+                AppFormatters.duration(
+                  Duration(seconds: state.durationSeconds),
+                ),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -296,10 +307,14 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildRecitationCanvas(BuildContext context, QuranOralRecitationState state) {
+  Widget _buildRecitationCanvas(
+    BuildContext context,
+    QuranOralRecitationState state,
+  ) {
     final colors = context.mishkat;
 
-    final isPermissionGate = state.lifecycle.isRequestingPermission ||
+    final isPermissionGate =
+        state.lifecycle.isRequestingPermission ||
         state.lifecycle.isInitializingSpeechEngine ||
         state.lifecycle.isPermissionDenied ||
         state.lifecycle.isPermissionPermanentlyDenied ||
@@ -317,7 +332,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     // Group aligned words by Ayah
     final ayahsMap = <int, List<RecitationWordAlignment>>{};
     for (final word in state.alignedWords) {
-      ayahsMap.putIfAbsent(word.authoritativeWord.globalAyah, () => []).add(word);
+      ayahsMap
+          .putIfAbsent(word.authoritativeWord.globalAyah, () => [])
+          .add(word);
     }
 
     return ListView.builder(
@@ -328,6 +345,12 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
         final words = ayahsMap[globalAyah]!;
         final isCurrent = globalAyah == state.currentGlobalAyah;
         final isRevealed = state.revealedGlobals.contains(globalAyah);
+        final isCompleted = state.completedGlobalAyahs.contains(globalAyah);
+        final hasMistake = words.any(
+          (word) =>
+              word.status == WordAlignmentStatus.omission ||
+              word.status == WordAlignmentStatus.substitution,
+        );
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 14),
@@ -343,7 +366,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.primarySoft,
                         borderRadius: MishkatRadius.brSm,
@@ -357,6 +383,28 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                         ),
                       ),
                     ),
+                    if (isCompleted) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (hasMistake ? colors.error : colors.success)
+                              .withValues(alpha: .12),
+                          borderRadius: MishkatRadius.brPill,
+                        ),
+                        child: Text(
+                          hasMistake ? 'راجع الملوّن بالأحمر' : 'تمت الآية',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: hasMistake ? colors.error : colors.success,
+                          ),
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     IconButton(
                       iconSize: 18,
@@ -365,7 +413,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                         isRevealed
                             ? Icons.visibility_rounded
                             : Icons.visibility_off_outlined,
-                        color: isRevealed ? colors.primary : colors.textSecondary,
+                        color: isRevealed
+                            ? colors.primary
+                            : colors.textSecondary,
                       ),
                       onPressed: () {
                         final cubit = context.read<QuranOralRecitationCubit>();
@@ -380,8 +430,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                 ),
                 const SizedBox(height: 10),
 
-                // Ayah Words
-                if (isRevealed)
+                // Keep the Ayah fully hidden during recall. Once the recognizer
+                // completes it, reveal the authoritative words and mark errors.
+                if (isRevealed && !isCompleted)
                   Text(
                     words.map((w) => w.authoritativeWord.uthmaniText).join(' '),
                     textAlign: TextAlign.center,
@@ -392,12 +443,51 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                       color: colors.textPrimary,
                     ),
                   )
-                else
+                else if (isCompleted)
                   Wrap(
                     spacing: 6,
                     runSpacing: 8,
                     alignment: WrapAlignment.center,
-                    children: words.map((w) => _buildWordChip(context, w)).toList(),
+                    children: words
+                        .map((w) => _buildWordChip(context, w))
+                        .toList(),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 18,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceVariant.withValues(alpha: .55),
+                      borderRadius: MishkatRadius.brMd,
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          isCurrent
+                              ? Icons.graphic_eq_rounded
+                              : Icons.visibility_off_outlined,
+                          color: isCurrent
+                              ? colors.primary
+                              : colors.textSecondary,
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          isCurrent
+                              ? 'اقرأ الآية من حفظك… سنكشفها عند اكتمالها'
+                              : 'تظهر هذه الآية عندما يحين دورها',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12.5,
+                            fontWeight: isCurrent
+                                ? FontWeight.w700
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -407,11 +497,15 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildPermissionGateCard(BuildContext context, QuranOralRecitationState state) {
+  Widget _buildPermissionGateCard(
+    BuildContext context,
+    QuranOralRecitationState state,
+  ) {
     final colors = context.mishkat;
     final cubit = context.read<QuranOralRecitationCubit>();
 
-    if (state.lifecycle.isRequestingPermission || state.lifecycle.isInitializingSpeechEngine) {
+    if (state.lifecycle.isRequestingPermission ||
+        state.lifecycle.isInitializingSpeechEngine) {
       final isEngine = state.lifecycle.isInitializingSpeechEngine;
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -436,7 +530,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
           ),
           const SizedBox(height: 16),
           Text(
-            isEngine ? 'جارٍ تهيئة محرك التعرف الصوتي...' : 'جارٍ طلب إذن الميكروفون...',
+            isEngine
+                ? 'جارٍ تهيئة محرك التعرف الصوتي...'
+                : 'جارٍ طلب إذن الميكروفون...',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -463,7 +559,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
               color: Colors.red.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.settings_suggest_rounded, size: 36, color: Colors.red.shade700),
+            child: Icon(
+              Icons.settings_suggest_rounded,
+              size: 36,
+              color: Colors.red.shade700,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -475,7 +575,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
           Text(
             'إذن الميكروفون مرفوض من إعدادات الجهاز. افتح إعدادات التطبيق وفعّل الميكروفون، ثم ارجع وحاول مرة أخرى.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.5),
+            style: TextStyle(
+              fontSize: 13,
+              color: colors.textSecondary,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 20),
           MishkatPrimaryAction(
@@ -506,7 +610,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
               color: Colors.orange.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.warning_amber_rounded, size: 36, color: Colors.orange.shade700),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              size: 36,
+              color: Colors.orange.shade700,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -518,7 +626,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
           Text(
             'خدمة التعرف على الكلام غير متاحة على هذا الجهاز حاليًا.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.5),
+            style: TextStyle(
+              fontSize: 13,
+              color: colors.textSecondary,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 20),
           MishkatPrimaryAction(
@@ -554,7 +666,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
         Text(
           'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك ومطابقتها محلياً على جهازك دون إرسال التسجيلات لأي خوادم خارجية.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.5),
+          style: TextStyle(
+            fontSize: 13,
+            color: colors.textSecondary,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 20),
         MishkatPrimaryAction(
@@ -639,7 +755,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildTranscriptTicker(BuildContext context, QuranOralRecitationState state) {
+  Widget _buildTranscriptTicker(
+    BuildContext context,
+    QuranOralRecitationState state,
+  ) {
     final colors = context.mishkat;
 
     return Container(
@@ -667,9 +786,13 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildControlDock(BuildContext context, QuranOralRecitationState state) {
+  Widget _buildControlDock(
+    BuildContext context,
+    QuranOralRecitationState state,
+  ) {
     final cubit = context.read<QuranOralRecitationCubit>();
-    final isBusy = state.lifecycle.isRequestingPermission ||
+    final isBusy =
+        state.lifecycle.isRequestingPermission ||
         state.lifecycle.isInitializingSpeechEngine;
 
     return Padding(
@@ -683,7 +806,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
               label: 'إنهاء',
               icon: const Icon(Icons.stop_rounded),
               isFullWidth: true,
-              onPressed: state.hasActiveSession ? () => cubit.finishSession() : null,
+              onPressed: state.hasActiveSession
+                  ? () => cubit.finishSession()
+                  : null,
             ),
           ),
           const SizedBox(width: 8),
@@ -699,32 +824,32 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                     onPressed: () => cubit.pauseRecitation(),
                   )
                 : state.lifecycle == OralRecitationLifecycle.paused
-                    ? MishkatPrimaryAction(
-                        label: 'متابعة',
-                        icon: const Icon(Icons.mic_rounded),
-                        isFullWidth: true,
-                        onPressed: () => cubit.resumeRecitation(),
-                      )
-                    : isBusy
-                        ? MishkatPrimaryAction(
-                            label: 'جارٍ التجهيز...',
-                            icon: const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            isFullWidth: true,
-                            onPressed: null,
-                          )
-                        : MishkatPrimaryAction(
-                            label: 'بدء التسميع',
-                            icon: const Icon(Icons.mic_rounded),
-                            isFullWidth: true,
-                            onPressed: () => cubit.startRecitation(),
-                          ),
+                ? MishkatPrimaryAction(
+                    label: 'متابعة',
+                    icon: const Icon(Icons.mic_rounded),
+                    isFullWidth: true,
+                    onPressed: () => cubit.resumeRecitation(),
+                  )
+                : isBusy
+                ? MishkatPrimaryAction(
+                    label: 'جارٍ التجهيز...',
+                    icon: const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                    isFullWidth: true,
+                    onPressed: null,
+                  )
+                : MishkatPrimaryAction(
+                    label: 'بدء التسميع',
+                    icon: const Icon(Icons.mic_rounded),
+                    isFullWidth: true,
+                    onPressed: () => cubit.startRecitation(),
+                  ),
           ),
           const SizedBox(width: 8),
 
@@ -743,7 +868,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  void _showDiscrepancyDetail(BuildContext context, RecitationWordAlignment word) {
+  void _showDiscrepancyDetail(
+    BuildContext context,
+    RecitationWordAlignment word,
+  ) {
     final colors = context.mishkat;
     final theme = Theme.of(context);
 
@@ -751,7 +879,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
       context: context,
       backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MishkatRadius.lg)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MishkatRadius.lg),
+        ),
       ),
       builder: (_) {
         return Padding(
@@ -766,12 +896,17 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                     word.status.isMatched
                         ? Icons.check_circle_rounded
                         : Icons.warning_amber_rounded,
-                    color: word.status.isMatched ? colors.primary : Colors.orange,
+                    color: word.status.isMatched
+                        ? colors.primary
+                        : Colors.orange,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'تفاصيل الكلمة (${word.status.arabicLabel})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -782,7 +917,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                   children: [
                     Row(
                       children: [
-                        const Text('اللفظ القرآني الصحيح: ', style: TextStyle(fontSize: 12)),
+                        const Text(
+                          'اللفظ القرآني الصحيح: ',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         const Spacer(),
                         Text(
                           word.authoritativeWord.uthmaniText,
@@ -798,7 +936,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                       const Divider(height: 16),
                       Row(
                         children: [
-                          const Text('اللفظ المسموع: ', style: TextStyle(fontSize: 12)),
+                          const Text(
+                            'اللفظ المسموع: ',
+                            style: TextStyle(fontSize: 12),
+                          ),
                           const Spacer(),
                           Text(
                             word.recognizedWord!,
@@ -828,7 +969,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     );
   }
 
-  Widget _buildCompletedView(BuildContext context, QuranOralRecitationState state) {
+  Widget _buildCompletedView(
+    BuildContext context,
+    QuranOralRecitationState state,
+  ) {
     final colors = context.mishkat;
     final summary = state.summary;
 
@@ -846,16 +990,19 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                 color: colors.primarySoft,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.task_alt_rounded, color: colors.primary, size: 32),
+              child: Icon(
+                Icons.task_alt_rounded,
+                color: colors.primary,
+                size: 32,
+              ),
             ),
           ),
           const SizedBox(height: 12),
           Center(
             child: Text(
               'اكتملت جلسة التسميع',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 4),
@@ -893,7 +1040,9 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                       child: _buildStatItem(
                         'السقط والخطأ',
                         '${(summary?.omissionsCount ?? 0) + (summary?.substitutionsCount ?? 0)}',
-                        (summary?.omissionsCount ?? 0) + (summary?.substitutionsCount ?? 0) > 0
+                        (summary?.omissionsCount ?? 0) +
+                                    (summary?.substitutionsCount ?? 0) >
+                                0
                             ? Colors.red
                             : colors.primary,
                       ),
@@ -913,7 +1062,10 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.primarySoft,
                         borderRadius: MishkatRadius.brSm,
@@ -944,12 +1096,19 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded, color: colors.primary, size: 20),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: colors.primary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
                       'تم تسجيل النتيجة بنجاح في سجل ومراجعة الحفظ!',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -963,14 +1122,17 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
               icon: const Icon(Icons.bookmark_add_outlined),
               onPressed: state.isCommittingToMemorization
                   ? null
-                  : () => context.read<QuranOralRecitationCubit>().commitToMemorization(),
+                  : () => context
+                        .read<QuranOralRecitationCubit>()
+                        .commitToMemorization(),
             ),
 
           const SizedBox(height: 12),
           MishkatSecondaryAction(
             label: 'إجراء جلسة تسميع جديدة',
             icon: const Icon(Icons.replay_rounded),
-            onPressed: () => context.read<QuranOralRecitationCubit>().prepareSession(
+            onPressed: () =>
+                context.read<QuranOralRecitationCubit>().prepareSession(
                   surahNumber: state.surahNumber,
                   startGlobalAyah: state.startGlobalAyah,
                   endGlobalAyah: state.endGlobalAyah,
@@ -998,10 +1160,7 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }

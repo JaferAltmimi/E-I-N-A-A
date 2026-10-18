@@ -22,13 +22,29 @@ class MemorizationSessionPage extends StatefulWidget {
   const MemorizationSessionPage({
     super.key,
     required this.quranData,
+    this.initialRepeatCount = 3,
+    this.initialDelaySeconds = 3,
+    this.startWithAudio = false,
   });
 
   final QuranData quranData;
+  final int initialRepeatCount;
+  final int initialDelaySeconds;
+  final bool startWithAudio;
 
-  static Route<void> route({required QuranData quranData}) {
+  static Route<void> route({
+    required QuranData quranData,
+    int initialRepeatCount = 3,
+    int initialDelaySeconds = 3,
+    bool startWithAudio = false,
+  }) {
     return MaterialPageRoute<void>(
-      builder: (_) => MemorizationSessionPage(quranData: quranData),
+      builder: (_) => MemorizationSessionPage(
+        quranData: quranData,
+        initialRepeatCount: initialRepeatCount,
+        initialDelaySeconds: initialDelaySeconds,
+        startWithAudio: startWithAudio,
+      ),
     );
   }
 
@@ -38,8 +54,37 @@ class MemorizationSessionPage extends StatefulWidget {
 }
 
 class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
-  int _sessionRepeatCount = 3;
-  int _sessionDelaySeconds = 3;
+  late int _sessionRepeatCount;
+  late int _sessionDelaySeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionRepeatCount = widget.initialRepeatCount.clamp(1, 10);
+    _sessionDelaySeconds = widget.initialDelaySeconds.clamp(0, 10);
+    if (widget.startWithAudio) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final session = context
+            .read<QuranMemorizationCubit>()
+            .state
+            .activeSession;
+        if (session == null || session.queue.isEmpty) return;
+        context.read<QuranCubit>().startRepeatPlayback(
+          AudioRepeatConfig(
+            mode: AudioRepeatMode.perAyahRange,
+            startGlobalAyah: session.queue.first,
+            endGlobalAyah: session.queue.last,
+            ayahRepeatCount: _sessionRepeatCount,
+            delaySeconds: _sessionDelaySeconds,
+          ),
+          initialGlobalAyah: session.queue.first,
+          customQueue: session.queue,
+          autoScroll: false,
+        );
+      });
+    }
+  }
 
   Future<void> _confirmExit() async {
     final cubit = context.read<QuranMemorizationCubit>();
@@ -161,7 +206,9 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
         final point = widget.quranData.pointForGlobal(globalAyah);
         final chapter = widget.quranData.chapter(point.surah);
         final ayahIndex = (point.ayah - 1).clamp(0, chapter.ayahs.length - 1);
-        final ayahText = chapter.ayahs.isNotEmpty ? chapter.ayahs[ayahIndex] : '';
+        final ayahText = chapter.ayahs.isNotEmpty
+            ? chapter.ayahs[ayahIndex]
+            : '';
         final pageNumber = widget.quranData.pageForGlobal(globalAyah);
         final item = memState.getItem(globalAyah);
 
@@ -257,10 +304,7 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                 const SizedBox(height: MishkatSpacing.base),
 
                 // Companion Action Tools (Listen, Tafsir, Mushaf, Bookmark)
-                _buildCompanionTools(
-                  context: context,
-                  globalAyah: globalAyah,
-                ),
+                _buildCompanionTools(context: context, globalAyah: globalAyah),
                 const SizedBox(height: MishkatSpacing.xl),
 
                 // Self-Assessment Heading
@@ -284,9 +328,13 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         Expanded(
                           child: Material(
                             color: colors.primarySoft,
-                            borderRadius: BorderRadius.circular(MishkatRadius.md),
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.md,
+                            ),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(MishkatRadius.md),
+                              borderRadius: BorderRadius.circular(
+                                MishkatRadius.md,
+                              ),
                               onTap: () {
                                 context
                                     .read<QuranMemorizationCubit>()
@@ -330,9 +378,13 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         Expanded(
                           child: Material(
                             color: colors.primary,
-                            borderRadius: BorderRadius.circular(MishkatRadius.md),
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.md,
+                            ),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(MishkatRadius.md),
+                              borderRadius: BorderRadius.circular(
+                                MishkatRadius.md,
+                              ),
                               onTap: () {
                                 context
                                     .read<QuranMemorizationCubit>()
@@ -381,9 +433,13 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         Expanded(
                           child: Material(
                             color: colors.warning.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(MishkatRadius.md),
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.md,
+                            ),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(MishkatRadius.md),
+                              borderRadius: BorderRadius.circular(
+                                MishkatRadius.md,
+                              ),
                               onTap: () {
                                 context
                                     .read<QuranMemorizationCubit>()
@@ -427,9 +483,13 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         Expanded(
                           child: Material(
                             color: colors.error.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(MishkatRadius.md),
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.md,
+                            ),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(MishkatRadius.md),
+                              borderRadius: BorderRadius.circular(
+                                MishkatRadius.md,
+                              ),
                               onTap: () {
                                 context
                                     .read<QuranMemorizationCubit>()
@@ -541,19 +601,13 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
             const SizedBox(height: MishkatSpacing.md),
             const Text(
               'استحضر الآية الكريمة غيباً',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             Text(
               'اقرأ الآية من حفظك، ثم اضغط لإظهار النص والتأكد من صحتها.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: MishkatSpacing.xl),
             MishkatPrimaryAction(
@@ -654,7 +708,7 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
       builder: (context, quranState) {
         final isPlaying =
             quranState.audioStatus == QuranAudioStatus.playing &&
-                quranState.audioGlobalAyah == globalAyah;
+            quranState.audioGlobalAyah == globalAyah;
         final isBookmarked = quranState.isAyahBookmarked(globalAyah);
 
         return Row(
@@ -695,7 +749,9 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isPlaying ? Icons.pause_rounded : Icons.volume_up_rounded,
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.volume_up_rounded,
                           color: isPlaying ? Colors.white : colors.primary,
                           size: 20,
                         ),
@@ -703,13 +759,15 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         Text(
                           isPlaying
                               ? (quranState.repeatState.isDelaying
-                                  ? 'ترديد (${quranState.repeatState.remainingDelaySeconds}ث)'
-                                  : 'تكرار ${quranState.repeatState.currentAyahRepeat}/$_sessionRepeatCount')
+                                    ? 'ترديد (${quranState.repeatState.remainingDelaySeconds}ث)'
+                                    : 'تكرار ${quranState.repeatState.currentAyahRepeat}/$_sessionRepeatCount')
                               : 'استماع ($_sessionRepeatCount×)',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isPlaying ? Colors.white : colors.textPrimary,
+                            color: isPlaying
+                                ? Colors.white
+                                : colors.textPrimary,
                           ),
                         ),
                       ],
@@ -793,15 +851,17 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
             // Bookmark for retention
             Expanded(
               child: Material(
-                color: isBookmarked ? colors.primarySoft : colors.surfaceVariant,
+                color: isBookmarked
+                    ? colors.primarySoft
+                    : colors.surfaceVariant,
                 borderRadius: BorderRadius.circular(MishkatRadius.md),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(MishkatRadius.md),
                   onTap: () {
                     context.read<QuranCubit>().toggleAyahBookmark(
-                          globalAyah,
-                          label: 'آية تحتاج تثبيت',
-                        );
+                      globalAyah,
+                      label: 'آية تحتاج تثبيت',
+                    );
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -812,7 +872,9 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                           isBookmarked
                               ? Icons.bookmark_rounded
                               : Icons.bookmark_border_rounded,
-                          color: isBookmarked ? colors.primary : colors.textSecondary,
+                          color: isBookmarked
+                              ? colors.primary
+                              : colors.textSecondary,
                           size: 20,
                         ),
                         const SizedBox(height: 2),
@@ -821,7 +883,9 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isBookmarked ? colors.primary : colors.textPrimary,
+                            color: isBookmarked
+                                ? colors.primary
+                                : colors.textPrimary,
                           ),
                         ),
                       ],
@@ -848,8 +912,9 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: theme.scaffoldBackgroundColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -862,8 +927,10 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text('عدد التكرارات للآية:',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  'عدد التكرارات للآية:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -879,8 +946,10 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                   }).toList(),
                 ),
                 const SizedBox(height: 14),
-                const Text('مهلة الترديد (صمت للحفظ):',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  'مهلة الترديد (صمت للحفظ):',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -913,10 +982,7 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('اكتملت الجلسة'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('اكتملت الجلسة'), centerTitle: true),
       body: SafeArea(
         child: Padding(
           padding: MishkatSpacing.page,
@@ -924,11 +990,7 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                Icons.stars_rounded,
-                size: 80,
-                color: colors.gold,
-              ),
+              Icon(Icons.stars_rounded, size: 80, color: colors.gold),
               const SizedBox(height: MishkatSpacing.lg),
               Text(
                 'تم إكمال الجلسة بنجاح!',
@@ -968,11 +1030,7 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         ),
                       ],
                     ),
-                    Container(
-                      width: 1,
-                      height: 36,
-                      color: colors.border,
-                    ),
+                    Container(width: 1, height: 36, color: colors.border),
                     Column(
                       children: [
                         Text(
@@ -993,11 +1051,7 @@ class _MemorizationSessionPageState extends State<MemorizationSessionPage> {
                         ),
                       ],
                     ),
-                    Container(
-                      width: 1,
-                      height: 36,
-                      color: colors.border,
-                    ),
+                    Container(width: 1, height: 36, color: colors.border),
                     Column(
                       children: [
                         Text(
@@ -1073,11 +1127,7 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         status.arabicLabel,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: fg),
       ),
     );
   }

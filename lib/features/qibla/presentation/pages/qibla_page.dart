@@ -104,18 +104,19 @@ class _QiblaPageState extends State<QiblaPage> with WidgetsBindingObserver {
                 isPushedRoute: isPushedRoute,
               ),
 
-              const SizedBox(height: MishkatSpacing.base),
+              const SizedBox(height: MishkatSpacing.md),
 
               // ─────────────────────────────────────────────────────────────
               // 2. State-Specific Content
               // ─────────────────────────────────────────────────────────────
-              if (!settings.hasLocation || state.status == QiblaStatus.noLocation)
+              if (!settings.hasLocation ||
+                  state.status == QiblaStatus.noLocation)
                 _NoLocationCard(isLocating: isLocating)
               else ...[
                 // Guidance Banner
                 _GuidanceBanner(state: state),
 
-                const SizedBox(height: MishkatSpacing.lg),
+                const SizedBox(height: MishkatSpacing.md),
 
                 // Main Compass View
                 MishkatCompassWidget(
@@ -126,7 +127,7 @@ class _QiblaPageState extends State<QiblaPage> with WidgetsBindingObserver {
                   isListening: state.status == QiblaStatus.listening,
                 ),
 
-                const SizedBox(height: MishkatSpacing.lg),
+                const SizedBox(height: MishkatSpacing.md),
 
                 // Metrics Row (Angle, Heading, Distance)
                 _MetricsRow(state: state),
@@ -144,7 +145,7 @@ class _QiblaPageState extends State<QiblaPage> with WidgetsBindingObserver {
                 const SizedBox(height: MishkatSpacing.md),
 
                 // Calibration & Best Practice Advice Card
-                const _CalibrationTipCard(),
+                _CalibrationTipCard(state: state),
               ],
             ],
           ),
@@ -186,6 +187,7 @@ class _QiblaHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasLoc = settings.hasLocation;
+    final colors = context.mishkat;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,27 +206,26 @@ class _QiblaHeader extends StatelessWidget {
                 Text(
                   'رجوع',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.mishkat.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: context.mishkat.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
 
-        // Islamic Category Tag
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
               child: Text(
-                'باتجاه البيت الحرام بمكة',
+                'اتجاه القبلة',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: context.mishkat.gold,
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             const SizedBox(width: MishkatSpacing.sm),
@@ -234,91 +235,80 @@ class _QiblaHeader extends StatelessWidget {
           ],
         ),
 
-        const SizedBox(height: 2),
-
-        // Main Title
+        const SizedBox(height: 3),
         Text(
-          'اتجاه القبلة',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: context.mishkat.textPrimary,
-              ),
-        ),
-
-        const SizedBox(height: 2),
-
-        // Subtitle & Location Chip
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'اعرف اتجاه الكعبة من موقعك الحالي بدقة.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: context.mishkat.textSecondary,
-                ),
-              ),
-            ),
-          ],
+          'وجّه أعلى الهاتف نحو الكعبة المشرفة في مكة.',
+          style: TextStyle(fontSize: 13, color: colors.textSecondary),
         ),
 
         const SizedBox(height: MishkatSpacing.sm),
 
-        // Location Chip with refresh capability
         if (hasLoc)
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MishkatSpacing.md,
-              vertical: MishkatSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: context.mishkat.surfaceMuted,
-              borderRadius: BorderRadius.circular(MishkatRadius.pill),
-              border: Border.all(color: context.mishkat.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 15,
-                  color: context.mishkat.primary,
+          Material(
+            color: colors.surfaceMuted,
+            borderRadius: MishkatRadius.brMd,
+            child: InkWell(
+              onTap: isLocating
+                  ? null
+                  : context.read<SettingsCubit>().useCurrentLocation,
+              borderRadius: MishkatRadius.brMd,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 8,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  settings.city,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: context.mishkat.textPrimary,
-                  ),
+                decoration: BoxDecoration(
+                  borderRadius: MishkatRadius.brMd,
+                  border: Border.all(color: colors.border),
                 ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: isLocating
-                      ? null
-                      : () => context
-                          .read<SettingsCubit>()
-                          .useCurrentLocation(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: isLocating
-                        ? SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: context.mishkat.primary,
-                            ),
-                          )
-                        : Icon(
-                            Icons.refresh_rounded,
-                            size: 14,
-                            color: context.mishkat.textSecondary,
-                          ),
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 17,
+                      color: colors.primary,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        settings.city,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (isLocating)
+                      SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.7,
+                          color: colors.primary,
+                        ),
+                      )
+                    else ...[
+                      Text(
+                        'تحديث الموقع',
+                        style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(
+                        Icons.refresh_rounded,
+                        size: 16,
+                        color: colors.primary,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
       ],
@@ -378,8 +368,8 @@ class _GuidanceBanner extends StatelessWidget {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.symmetric(
-        horizontal: MishkatSpacing.base,
-        vertical: MishkatSpacing.md,
+        horizontal: MishkatSpacing.md,
+        vertical: 11,
       ),
       decoration: BoxDecoration(
         color: aligned ? activeBg : context.mishkat.primarySoft,
@@ -401,8 +391,8 @@ class _GuidanceBanner extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: aligned
@@ -411,7 +401,7 @@ class _GuidanceBanner extends StatelessWidget {
             ),
             child: Icon(
               icon,
-              size: 24,
+              size: 21,
               color: aligned ? activeTextColor : context.mishkat.primary,
             ),
           ),
@@ -423,17 +413,18 @@ class _GuidanceBanner extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: aligned
-                            ? activeTextColor
-                            : context.mishkat.textPrimary,
-                      ),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: aligned
+                        ? activeTextColor
+                        : context.mishkat.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: aligned
                         ? activeTextColor.withValues(alpha: 0.85)
                         : context.mishkat.textSecondary,
@@ -467,42 +458,42 @@ class _MetricsRow extends StatelessWidget {
         ? '${state.distanceKm!.round()} كم'
         : '—';
 
-    return Row(
-      children: [
-        // Metric 1: Qibla Bearing
-        Expanded(
-          child: _MetricCard(
-            label: 'زاوية القبلة',
-            value: bearingText,
-            sublabel: 'من الشمال الحقيقي',
-            icon: Icons.navigation_rounded,
-          ),
+    return MishkatCard(
+      padding: EdgeInsets.zero,
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                label: 'زاوية القبلة',
+                value: bearingText,
+                sublabel: 'من الشمال',
+                icon: Icons.navigation_rounded,
+              ),
+            ),
+            VerticalDivider(width: 1, color: context.mishkat.borderSubtle),
+            Expanded(
+              child: _MetricCard(
+                label: 'اتجاه هاتفك',
+                value: headingText,
+                sublabel: state.status == QiblaStatus.listening
+                    ? 'قراءة مباشرة'
+                    : 'متوقف',
+                icon: Icons.smartphone_rounded,
+              ),
+            ),
+            VerticalDivider(width: 1, color: context.mishkat.borderSubtle),
+            Expanded(
+              child: _MetricCard(
+                label: 'المسافة للكعبة',
+                value: distanceText,
+                sublabel: 'تقريبية',
+                icon: Icons.place_outlined,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: MishkatSpacing.sm),
-
-        // Metric 2: Device Heading
-        Expanded(
-          child: _MetricCard(
-            label: 'اتجاه هاتفك',
-            value: headingText,
-            sublabel: state.status == QiblaStatus.listening
-                ? 'مباشر الآن'
-                : 'متوقف',
-            icon: Icons.smartphone_rounded,
-          ),
-        ),
-        const SizedBox(width: MishkatSpacing.sm),
-
-        // Metric 3: Distance to Kaaba
-        Expanded(
-          child: _MetricCard(
-            label: 'المسافة للكعبة',
-            value: distanceText,
-            sublabel: 'مسار مستقيم',
-            icon: Icons.place_outlined,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -522,34 +513,24 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: MishkatSpacing.sm,
-        vertical: MishkatSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: context.mishkat.surfaceMuted,
-        borderRadius: BorderRadius.circular(MishkatRadius.md),
-        border: Border.all(color: context.mishkat.border),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 13,
-                color: context.mishkat.primary,
-              ),
+              Icon(icon, size: 13, color: context.mishkat.primary),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: context.mishkat.textSecondary,
                   ),
@@ -560,20 +541,16 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 1),
           Text(
             sublabel,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10,
-              color: context.mishkat.textMuted,
-            ),
+            style: TextStyle(fontSize: 10, color: context.mishkat.textMuted),
           ),
         ],
       ),
@@ -591,18 +568,19 @@ class _ControlsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.status == QiblaStatus.listening) {
-      return MishkatSecondaryAction(
-        onPressed: context.read<QiblaCubit>().stop,
-        icon: const Icon(Icons.pause_circle_outline_rounded),
-        label: 'إيقاف البوصلة',
-        isFullWidth: true,
+      return Center(
+        child: MishkatTextAction(
+          onPressed: context.read<QiblaCubit>().stop,
+          icon: Icons.pause_circle_outline_rounded,
+          label: 'إيقاف التوجيه مؤقتاً',
+        ),
       );
     }
 
     return MishkatPrimaryAction(
       onPressed: context.read<QiblaCubit>().start,
       icon: const Icon(Icons.explore_rounded),
-      label: 'تشغيل البوصلة التفاعلية',
+      label: 'ابدأ تحديد اتجاه القبلة',
       isFullWidth: true,
     );
   }
@@ -626,9 +604,19 @@ class _StatusBadge extends StatelessWidget {
       color = context.mishkat.success;
       icon = Icons.check_circle_outline_rounded;
     } else if (state.status == QiblaStatus.listening) {
-      text = 'نشط — دقة ${state.accuracyLabel}';
-      color = context.mishkat.primary;
-      icon = Icons.sensors_rounded;
+      if (state.accuracy == null) {
+        text = 'جارٍ القياس';
+        color = context.mishkat.primary;
+        icon = Icons.sensors_rounded;
+      } else if (state.accuracy! < 0 || state.accuracy! > 25) {
+        text = 'تحتاج معايرة';
+        color = context.mishkat.warning;
+        icon = Icons.screen_rotation_alt_rounded;
+      } else {
+        text = 'دقة ${state.accuracyLabel}';
+        color = context.mishkat.primary;
+        icon = Icons.sensors_rounded;
+      }
     } else if (state.status == QiblaStatus.ready) {
       text = 'جاهزة للاستخدام';
       color = context.mishkat.textSecondary;
@@ -698,9 +686,8 @@ class _NoLocationCard extends StatelessWidget {
           const SizedBox(height: MishkatSpacing.md),
           Text(
             'تحديد الموقع مطلوب',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: MishkatSpacing.xs),
           Text(
@@ -788,52 +775,192 @@ class _SensorUnavailableCard extends StatelessWidget {
 // Calibration Tip Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _CalibrationTipCard extends StatelessWidget {
-  const _CalibrationTipCard();
+  const _CalibrationTipCard({required this.state});
+
+  final QiblaState state;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(MishkatSpacing.base),
-      decoration: BoxDecoration(
-        color: context.mishkat.surfaceMuted,
-        borderRadius: BorderRadius.circular(MishkatRadius.md),
-        border: Border.all(color: context.mishkat.border),
-      ),
+    final colors = context.mishkat;
+    final needsCalibration =
+        state.accuracy != null && (state.accuracy! < 0 || state.accuracy! > 25);
+    final accent = needsCalibration ? colors.warning : colors.primary;
+
+    return MishkatCard(
+      onTap: () => _showCalibrationTips(context),
+      color: needsCalibration
+          ? colors.warning.withValues(alpha: .07)
+          : colors.surfaceMuted,
+      borderColor: needsCalibration
+          ? colors.warning.withValues(alpha: .28)
+          : colors.border,
+      padding: const EdgeInsets.all(12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.shield_outlined,
-            color: context.mishkat.primary,
-            size: 20,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: .1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              needsCalibration
+                  ? Icons.screen_rotation_alt_rounded
+                  : Icons.shield_outlined,
+              color: accent,
+              size: 19,
+            ),
           ),
-          const SizedBox(width: MishkatSpacing.md),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'إرشادات لدقة البوصلة',
+                  needsCalibration
+                      ? 'البوصلة تحتاج إلى معايرة'
+                      : 'إرشادات لدقة البوصلة',
                   style: TextStyle(
                     fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: context.mishkat.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'للحصول على قراءة دقيقة: حرّك الهاتف في الهواء على شكل الرقم 8 لمعايرة المستشعر، وابتعد عن الأجهزة الإلكترونية والأغطية المغناطيسية.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.mishkat.textSecondary,
-                    height: 1.45,
-                  ),
+                  needsCalibration
+                      ? 'حرّك الهاتف بشكل الرقم 8 لتحسين القراءة.'
+                      : 'استخدم الهاتف بعيداً عن المعادن والمغناطيس.',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: colors.textSecondary),
                 ),
               ],
             ),
           ),
+          Icon(Icons.chevron_left_rounded, color: colors.textMuted, size: 20),
         ],
       ),
+    );
+  }
+
+  void _showCalibrationTips(BuildContext context) {
+    final colors = context.mishkat;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MishkatRadius.xl),
+        ),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textMuted.withValues(alpha: .35),
+                    borderRadius: MishkatRadius.brPill,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'لأفضل دقة للقبلة',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+              const _CalibrationStep(
+                icon: Icons.screen_rotation_alt_rounded,
+                title: 'عاير المستشعر',
+                subtitle: 'حرّك الهاتف في الهواء على شكل الرقم 8 عدة مرات.',
+              ),
+              const SizedBox(height: 10),
+              const _CalibrationStep(
+                icon: Icons.phone_android_rounded,
+                title: 'أمسك الهاتف بشكل مسطح',
+                subtitle: 'اجعل الشاشة للأعلى ووجّه أعلى الهاتف أمامك.',
+              ),
+              const SizedBox(height: 10),
+              const _CalibrationStep(
+                icon: Icons.electrical_services_outlined,
+                title: 'ابتعد عن مصادر التشويش',
+                subtitle: 'تجنب المعادن والسماعات والأغطية المغناطيسية.',
+              ),
+              const SizedBox(height: 18),
+              MishkatPrimaryAction(
+                label: 'حسناً، فهمت',
+                isFullWidth: true,
+                onPressed: () => Navigator.pop(sheetContext),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalibrationStep extends StatelessWidget {
+  const _CalibrationStep({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: colors.primarySoft,
+            borderRadius: MishkatRadius.brSm,
+          ),
+          child: Icon(icon, color: colors.primary, size: 19),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

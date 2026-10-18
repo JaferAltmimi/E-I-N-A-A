@@ -69,7 +69,7 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
     final safeDaily = dailyTarget.clamp(1, 100);
 
     final plan = MemorizationPlan(
-      id: 'plan_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'plan_${DateTime.now().microsecondsSinceEpoch}',
       title: title.trim().isEmpty ? 'خطة حفظ' : title.trim(),
       surah: surah,
       startGlobalAyah: start <= end ? start : end,

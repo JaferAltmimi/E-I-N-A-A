@@ -68,7 +68,7 @@ class QuranMemorizationPage extends StatelessWidget {
                       _EmptyPlanCard(
                         onCreate: () => _openPlan(context, quranData),
                         onOralRecitation: () =>
-                            OralRecitationInfoSheet.show(context),
+                            _showFreeRecitationSetup(context, quranData),
                       )
                     else
                       _TodayCard(
@@ -82,6 +82,20 @@ class QuranMemorizationPage extends StatelessWidget {
                       _RecoveryNotice(backlog: journey.recoveryBacklogCount),
                     ],
                     const MishkatSectionHeader(title: 'اختر طريقة التدريب'),
+                    if (plan != null) ...[
+                      _TrainingPlanSelector(
+                        plan: plan,
+                        quranData: quranData,
+                        canSwitch:
+                            state.plans
+                                .where((item) => !item.isCompleted)
+                                .length >
+                            1,
+                        onTap: () =>
+                            _showPlanSwitcher(context, state, quranData),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     _PracticeMethods(state: state, quranData: quranData),
                     MishkatSectionHeader(
                       title: 'خططي',
@@ -399,6 +413,97 @@ class _SegmentStat extends StatelessWidget {
   );
 }
 
+class _TrainingPlanSelector extends StatelessWidget {
+  const _TrainingPlanSelector({
+    required this.plan,
+    required this.quranData,
+    required this.canSwitch,
+    required this.onTap,
+  });
+
+  final MemorizationPlan plan;
+  final QuranData quranData;
+  final bool canSwitch;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Material(
+      color: colors.primarySoft.withValues(alpha: .55),
+      borderRadius: MishkatRadius.brMd,
+      child: InkWell(
+        onTap: canSwitch ? onTap : null,
+        borderRadius: MishkatRadius.brMd,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: .12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.bookmark_added_outlined,
+                  color: colors.primary,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'التدريب الآن على: ${plan.title}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _planRangeLabel(plan, quranData),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (canSwitch) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'تبديل',
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.expand_more_rounded,
+                  color: colors.primary,
+                  size: 20,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PracticeMethods extends StatelessWidget {
   const _PracticeMethods({required this.state, required this.quranData});
   final QuranMemorizationState state;
@@ -421,14 +526,12 @@ class _PracticeMethods extends StatelessWidget {
         _MethodTile(
           icon: Icons.mic_rounded,
           title: 'التسميع الذكي',
-          subtitle: 'ميزة التسميع الشفهي والاستماع الذكي',
+          subtitle: 'سمّع من خطتك الحالية أو اختر سورة ونطاقاً حراً.',
           badge: 'استماع مباشر',
-          onTap: () => OralRecitationInfoSheet.show(
+          onTap: () => _showOralRecitationSourceSheet(
             context,
-            surahNumber: plan?.surah ?? 1,
-            startGlobalAyah: plan?.startGlobalAyah,
-            endGlobalAyah: plan?.endGlobalAyah,
-            planId: plan?.id,
+            plan: plan,
+            quranData: quranData,
           ),
         ),
         const SizedBox(height: 10),
@@ -594,6 +697,9 @@ class _PlanTile extends StatelessWidget {
     final colors = context.mishkat;
     final progress = state.planProgress(plan);
     return MishkatCard(
+      onTap: !plan.isCompleted && !plan.isActive
+          ? () => context.read<QuranMemorizationCubit>().resumePlan(plan.id)
+          : null,
       padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       borderColor: plan.isActive
           ? colors.primary.withValues(alpha: .35)
@@ -640,7 +746,7 @@ class _PlanTile extends StatelessWidget {
                     if (plan.isActive) ...[
                       const SizedBox(width: 6),
                       Text(
-                        'نشطة',
+                        'مستخدمة الآن',
                         style: TextStyle(
                           color: colors.primary,
                           fontSize: 10,
@@ -1124,6 +1230,499 @@ void _showNeedPlan(BuildContext context) {
       behavior: SnackBarBehavior.floating,
     ),
   );
+}
+
+String _planRangeLabel(MemorizationPlan plan, QuranData quranData) {
+  final start = quranData.pointForGlobal(plan.startGlobalAyah);
+  final end = quranData.pointForGlobal(plan.endGlobalAyah);
+  final startChapter = quranData.chapter(start.surah);
+  if (start.surah == end.surah) {
+    return 'سورة ${startChapter.name} · الآيات ${start.ayah}–${end.ayah}';
+  }
+  final endChapter = quranData.chapter(end.surah);
+  return '${startChapter.name} ${start.ayah} – ${endChapter.name} ${end.ayah}';
+}
+
+void _showPlanSwitcher(
+  BuildContext context,
+  QuranMemorizationState state,
+  QuranData quranData,
+) {
+  final plans = state.plans.where((plan) => !plan.isCompleted).toList();
+  if (plans.length < 2) return;
+  final colors = context.mishkat;
+  final sheetHeight = (150 + (plans.length * 72)).clamp(280, 540).toDouble();
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(MishkatRadius.xl),
+      ),
+    ),
+    builder: (sheetContext) => SafeArea(
+      child: SizedBox(
+        height: sheetHeight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textMuted.withValues(alpha: .35),
+                    borderRadius: MishkatRadius.brPill,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'اختر خطة التدريب',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'ستعمل طرق التدريب الثلاث على الخطة التي تختارها.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: plans.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) {
+                    final plan = plans[index];
+                    return _PlanSwitchChoice(
+                      plan: plan,
+                      rangeLabel: _planRangeLabel(plan, quranData),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        if (!plan.isActive) {
+                          context.read<QuranMemorizationCubit>().resumePlan(
+                            plan.id,
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+void _showOralRecitationSourceSheet(
+  BuildContext context, {
+  required MemorizationPlan? plan,
+  required QuranData quranData,
+}) {
+  if (plan == null) {
+    _showFreeRecitationSetup(context, quranData);
+    return;
+  }
+
+  final colors = context.mishkat;
+  final startPoint = quranData.pointForGlobal(plan.startGlobalAyah);
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(MishkatRadius.xl),
+      ),
+    ),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.textMuted.withValues(alpha: .35),
+                  borderRadius: MishkatRadius.brPill,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'ماذا تريد أن تسمّع؟',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'اختر الخطة الحالية أو ابدأ جلسة مستقلة.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            _SheetChoice(
+              icon: Icons.bookmark_added_outlined,
+              title: plan.title,
+              subtitle: _planRangeLabel(plan, quranData),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!context.mounted) return;
+                  OralRecitationInfoSheet.show(
+                    context,
+                    surahNumber: plan.surah ?? startPoint.surah,
+                    startGlobalAyah: plan.startGlobalAyah,
+                    endGlobalAyah: plan.endGlobalAyah,
+                    planId: plan.id,
+                  );
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            _SheetChoice(
+              icon: Icons.tune_rounded,
+              title: 'تسميع حر',
+              subtitle: 'اختر سورة كاملة أو نطاقاً محدداً من الآيات.',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!context.mounted) return;
+                  _showFreeRecitationSetup(
+                    context,
+                    quranData,
+                    initialSurah: plan.surah ?? startPoint.surah,
+                  );
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _showFreeRecitationSetup(
+  BuildContext context,
+  QuranData quranData, {
+  int initialSurah = 1,
+}) {
+  var selectedSurah = initialSurah.clamp(1, quranData.chapters.length);
+  var startAyah = 1;
+  var endAyah = quranData.chapter(selectedSurah).ayahs.length > 5
+      ? 5
+      : quranData.chapter(selectedSurah).ayahs.length;
+  var wholeSurah = false;
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(MishkatRadius.xl),
+      ),
+    ),
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) {
+        final colors = sheetContext.mishkat;
+        final chapter = quranData.chapter(selectedSurah);
+        final totalAyahs = chapter.ayahs.length;
+        final selectedCount = wholeSurah ? totalAyahs : endAyah - startAyah + 1;
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.textMuted.withValues(alpha: .35),
+                      borderRadius: MishkatRadius.brPill,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'تسميع حر',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'اختر ما تريد تسميعه دون ربط النتيجة بخطة.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 18),
+                DropdownButtonFormField<int>(
+                  key: ValueKey('free-surah-$selectedSurah'),
+                  initialValue: selectedSurah,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'السورة',
+                    prefixIcon: Icon(Icons.menu_book_outlined),
+                  ),
+                  items: quranData.chapters
+                      .map(
+                        (item) => DropdownMenuItem<int>(
+                          value: item.number,
+                          child: Text(
+                            '${item.number}. سورة ${item.name}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    final ayahCount = quranData.chapter(value).ayahs.length;
+                    setSheetState(() {
+                      selectedSurah = value;
+                      startAyah = 1;
+                      endAyah = ayahCount > 5 ? 5 : ayahCount;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceVariant.withValues(alpha: .6),
+                    borderRadius: MishkatRadius.brMd,
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'السورة كاملة',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            Text(
+                              'أو عطّل الخيار وحدد بداية ونهاية.',
+                              style: TextStyle(fontSize: 10.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: wholeSurah,
+                        onChanged: (value) {
+                          setSheetState(() {
+                            wholeSurah = value;
+                            if (value) {
+                              startAyah = 1;
+                              endAyah = totalAyahs;
+                            } else {
+                              endAyah = totalAyahs > 5 ? 5 : totalAyahs;
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                if (!wholeSurah) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          key: ValueKey('free-start-$selectedSurah-$startAyah'),
+                          initialValue: startAyah,
+                          decoration: const InputDecoration(
+                            labelText: 'من الآية',
+                          ),
+                          items: List.generate(totalAyahs, (index) => index + 1)
+                              .map(
+                                (value) => DropdownMenuItem<int>(
+                                  value: value,
+                                  child: Text('$value'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setSheetState(() {
+                              startAyah = value;
+                              if (endAyah < value) endAyah = value;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          key: ValueKey(
+                            'free-end-$selectedSurah-$startAyah-$endAyah',
+                          ),
+                          initialValue: endAyah,
+                          decoration: const InputDecoration(
+                            labelText: 'إلى الآية',
+                          ),
+                          items:
+                              List.generate(
+                                    totalAyahs - startAyah + 1,
+                                    (index) => startAyah + index,
+                                  )
+                                  .map(
+                                    (value) => DropdownMenuItem<int>(
+                                      value: value,
+                                      child: Text('$value'),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setSheetState(() => endAyah = value);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  '$selectedCount آية محددة',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                MishkatPrimaryAction(
+                  label: 'متابعة إلى التسميع',
+                  icon: const Icon(Icons.mic_rounded),
+                  isFullWidth: true,
+                  onPressed: () {
+                    final resolvedStart = wholeSurah ? 1 : startAyah;
+                    final resolvedEnd = wholeSurah ? totalAyahs : endAyah;
+                    final startGlobal = chapter.globalStart + resolvedStart - 1;
+                    final endGlobal = chapter.globalStart + resolvedEnd - 1;
+                    Navigator.pop(sheetContext);
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!context.mounted) return;
+                      OralRecitationInfoSheet.show(
+                        context,
+                        surahNumber: selectedSurah,
+                        startGlobalAyah: startGlobal,
+                        endGlobalAyah: endGlobal,
+                      );
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _PlanSwitchChoice extends StatelessWidget {
+  const _PlanSwitchChoice({
+    required this.plan,
+    required this.rangeLabel,
+    required this.onTap,
+  });
+
+  final MemorizationPlan plan;
+  final String rangeLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Material(
+      color: plan.isActive
+          ? colors.primarySoft
+          : colors.surfaceVariant.withValues(alpha: .55),
+      borderRadius: MishkatRadius.brMd,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: MishkatRadius.brMd,
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Row(
+            children: [
+              Icon(
+                plan.isActive
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
+                color: plan.isActive ? colors.primary : colors.textMuted,
+                size: 22,
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plan.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      rangeLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (plan.isActive)
+                Text(
+                  'الحالية',
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 void _startRevision(

@@ -851,5 +851,100 @@ void main() {
       expect(find.text('المحفوظ'), findsOneWidget);
       expect(find.text('المراجعة الذكية والتثبيت'), findsOneWidget);
     });
+
+    testWidgets('QuranMemorizationPage switches the plan used for training', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1000, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final first = await cubit.createPlan(
+        title: 'خطة الفاتحة',
+        surah: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 3,
+        dailyTarget: 2,
+      );
+      await cubit.createPlan(
+        title: 'خطة البقرة',
+        surah: 2,
+        startGlobalAyah: 8,
+        endGlobalAyah: 10,
+        dailyTarget: 2,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<QuranMemorizationCubit>.value(value: cubit),
+              BlocProvider<QuranCubit>.value(value: quranCubit),
+            ],
+            child: const QuranMemorizationPage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('التدريب الآن على: خطة البقرة'), findsOneWidget);
+      await tester.tap(find.text('تبديل'));
+      await tester.pumpAndSettle();
+      expect(find.text('اختر خطة التدريب'), findsOneWidget);
+
+      await tester.tap(find.text('خطة الفاتحة').last);
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.activePlan?.id, first.id);
+      expect(find.text('التدريب الآن على: خطة الفاتحة'), findsOneWidget);
+    });
+
+    testWidgets('Oral recitation offers plan and free Surah range', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1000, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await cubit.createPlan(
+        title: 'خطة الفاتحة',
+        surah: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 7,
+        dailyTarget: 3,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<QuranMemorizationCubit>.value(value: cubit),
+              BlocProvider<QuranCubit>.value(value: quranCubit),
+            ],
+            child: const QuranMemorizationPage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('التسميع الذكي'));
+      await tester.tap(find.text('التسميع الذكي'));
+      await tester.pumpAndSettle();
+      expect(find.text('ماذا تريد أن تسمّع؟'), findsOneWidget);
+      expect(find.text('خطة الفاتحة'), findsWidgets);
+
+      await tester.tap(find.text('تسميع حر'));
+      await tester.pumpAndSettle();
+      expect(find.text('السورة'), findsOneWidget);
+      expect(find.text('السورة كاملة'), findsOneWidget);
+      expect(find.text('من الآية'), findsOneWidget);
+      expect(find.text('إلى الآية'), findsOneWidget);
+    });
   });
 }

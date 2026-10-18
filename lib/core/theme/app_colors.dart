@@ -57,30 +57,30 @@ class MishkatColors extends ThemeExtension<MishkatColors> {
   Color get selectedStateBg => primarySoft;
   Color get dividerColor => borderSubtle;
 
-  /// Warm ivory + calm olive green. The palette avoids stark white and keeps
-  /// large surfaces visually quiet while preserving accessible contrast.
+  /// Clean white + a very light blue-green gray. Large surfaces stay neutral
+  /// and cool, without cream or yellow casts.
   static const light = MishkatColors(
-    brandDeep: Color(0xFF214D40),
-    primaryStrong: Color(0xFF285E4B),
-    primarySoft: Color(0xFFE6EFEA),
-    gold: Color(0xFF87621F),
-    surfaceMuted: Color(0xFFF0F1EB),
-    textSecondary: Color(0xFF64706A),
-    border: Color(0xFFD8DED9),
-    heroLabel: Color(0xFFDCE8E2),
-    heroBorder: Color(0xFF527064),
+    brandDeep: Color(0xFF28584E),
+    primaryStrong: Color(0xFF35685D),
+    primarySoft: Color(0xFFE7F0EE),
+    gold: Color(0xFF58756E),
+    surfaceMuted: Color(0xFFEEF3F2),
+    textSecondary: Color(0xFF62716E),
+    border: Color(0xFFD9E2E0),
+    heroLabel: Color(0xFFE0ECE9),
+    heroBorder: Color(0xFF5B7A72),
     // Expanded tokens
-    primary: Color(0xFF285E4B),
-    primaryDark: Color(0xFF183E33),
-    background: Color(0xFFF7F5EF),
-    surface: Color(0xFFFDFCF8),
-    surfaceVariant: Color(0xFFF0F1EB),
-    textPrimary: Color(0xFF202A26),
-    textMuted: Color(0xFF87928C),
-    borderSubtle: Color(0xFFE8EBE6),
-    accentGoldSoft: Color(0xFFF3EBDD),
-    success: Color(0xFF39785E),
-    warning: Color(0xFF9A6B1E),
+    primary: Color(0xFF35685D),
+    primaryDark: Color(0xFF234C43),
+    background: Color(0xFFF5F8F7),
+    surface: Color(0xFFFFFFFF),
+    surfaceVariant: Color(0xFFEDF3F2),
+    textPrimary: Color(0xFF202A28),
+    textMuted: Color(0xFF86938F),
+    borderSubtle: Color(0xFFE5ECEA),
+    accentGoldSoft: Color(0xFFEDF3F2),
+    success: Color(0xFF3D7868),
+    warning: Color(0xFF8A7041),
     error: Color(0xFFB94A45),
   );
 
@@ -90,7 +90,7 @@ class MishkatColors extends ThemeExtension<MishkatColors> {
     brandDeep: Color(0xFF20483B),
     primaryStrong: Color(0xFF73B69D),
     primarySoft: Color(0xFF203A31),
-    gold: Color(0xFFD0AE68),
+    gold: Color(0xFF9ABAB2),
     surfaceMuted: Color(0xFF1B2924),
     textSecondary: Color(0xFFADB7B1),
     border: Color(0xFF31413B),
@@ -105,7 +105,7 @@ class MishkatColors extends ThemeExtension<MishkatColors> {
     textPrimary: Color(0xFFF1F1EC),
     textMuted: Color(0xFF7F8C86),
     borderSubtle: Color(0xFF25332E),
-    accentGoldSoft: Color(0xFF30291C),
+    accentGoldSoft: Color(0xFF1F302C),
     success: Color(0xFF79C7A5),
     warning: Color(0xFFE0B566),
     error: Color(0xFFE88982),

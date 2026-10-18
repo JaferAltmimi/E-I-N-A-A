@@ -1,10 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// Category of an audio broadcast or stream.
-enum AudioStationCategory {
-  liveStream,
-  radio,
-}
+enum AudioStationCategory { liveStream, radio }
 
 /// Truthful availability state of an audio stream.
 enum AudioStationAvailability {
@@ -27,6 +24,9 @@ class QuranAudioStation extends Equatable {
     required this.subtitle,
     required this.availability,
     this.streamUrl,
+    this.watchUrl,
+    this.youtubeChannelId,
+    this.sourceLabel,
     this.country,
     this.city,
     this.notes,
@@ -38,19 +38,29 @@ class QuranAudioStation extends Equatable {
   final String subtitle;
   final AudioStationAvailability availability;
   final String? streamUrl;
+  final String? watchUrl;
+  final String? youtubeChannelId;
+  final String? sourceLabel;
   final String? country;
   final String? city;
   final String? notes;
 
-  bool get isPlayable =>
+  bool get isAudioPlayable =>
       availability == AudioStationAvailability.available &&
       streamUrl != null &&
       streamUrl!.isNotEmpty;
 
+  bool get isWatchable =>
+      availability == AudioStationAvailability.available &&
+      ((youtubeChannelId != null && youtubeChannelId!.isNotEmpty) ||
+          (watchUrl != null && watchUrl!.isNotEmpty));
+
+  bool get isPlayable => isAudioPlayable || isWatchable;
+
   String get availabilityLabel {
     switch (availability) {
       case AudioStationAvailability.available:
-        return 'متاح الآن';
+        return isWatchable ? 'مباشر الآن' : 'متاح الآن';
       case AudioStationAvailability.awaitingSource:
         return 'بانتظار اعتماد المصدر الموثق';
       case AudioStationAvailability.offline:
@@ -60,16 +70,19 @@ class QuranAudioStation extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        category,
-        subtitle,
-        availability,
-        streamUrl,
-        country,
-        city,
-        notes,
-      ];
+    id,
+    title,
+    category,
+    subtitle,
+    availability,
+    streamUrl,
+    watchUrl,
+    youtubeChannelId,
+    sourceLabel,
+    country,
+    city,
+    notes,
+  ];
 
   /// Canonical catalog of requested live streams and Quran radio stations.
   ///
@@ -84,20 +97,26 @@ class QuranAudioStation extends Equatable {
       title: 'بث المسجد الحرام',
       category: AudioStationCategory.liveStream,
       subtitle: 'مكة المكرمة · أطهر بقاع الأرض',
-      availability: AudioStationAvailability.awaitingSource,
+      availability: AudioStationAvailability.available,
+      watchUrl: 'https://www.youtube.com/@SaudiQuranTv/live',
+      youtubeChannelId: 'UCos52azQNBgW63_9uDJoPDA',
+      sourceLabel: 'قناة القرآن الكريم الرسمية',
       country: 'المملكة العربية السعودية',
       city: 'مكة المكرمة',
-      notes: 'في انتظار اعتماد رابط البث الصوتي المباشر الرسمي من رئاسة شؤون الحرمين.',
+      notes: 'البث الرسمي لقناة القرآن الكريم التابعة لهيئة الإذاعة والتلفزيون السعودية.',
     ),
     QuranAudioStation(
       id: 'stream_masjid_nabawi',
       title: 'بث المسجد النبوي',
       category: AudioStationCategory.liveStream,
       subtitle: 'المدينة المنورة · مدينة رسول الله ﷺ',
-      availability: AudioStationAvailability.awaitingSource,
+      availability: AudioStationAvailability.available,
+      watchUrl: 'https://www.youtube.com/@SaudiSunnahTv/live',
+      youtubeChannelId: 'UCROKYPep-UuODNwyipe6JMw',
+      sourceLabel: 'قناة السنة النبوية الرسمية',
       country: 'المملكة العربية السعودية',
       city: 'المدينة المنورة',
-      notes: 'في انتظار اعتماد رابط البث الصوتي المباشر الرسمي من وكالة شؤون المسجد النبوي.',
+      notes: 'البث الرسمي لقناة السنة النبوية التابعة لهيئة الإذاعة والتلفزيون السعودية.',
     ),
 
     // ----------------------------------------------------
@@ -129,7 +148,8 @@ class QuranAudioStation extends Equatable {
       category: AudioStationCategory.radio,
       subtitle: 'دولة الإمارات العربية المتحدة · تلاوات خاشعة',
       availability: AudioStationAvailability.available,
-      streamUrl: 'https://l3.itworkscdn.net/smcquranlive/quranradiolive/icecast.audio',
+      streamUrl:
+          'https://l3.itworkscdn.net/smcquranlive/quranradiolive/icecast.audio',
       country: 'الإمارات',
       city: 'الشارقة',
       notes: 'بث مباشر معتمد عبر خوادم هيئة الشارقة للإذاعة والتلفزيون (Icecast AAC).',

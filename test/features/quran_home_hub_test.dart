@@ -481,7 +481,24 @@ void main() {
 
         expect(find.text('بث المسجد الحرام'), findsOneWidget);
         expect(find.text('بث المسجد النبوي'), findsOneWidget);
-        expect(find.text('بانتظار اعتماد المصدر الموثق'), findsWidgets);
+        expect(find.text('مباشر الآن'), findsNWidgets(2));
+        expect(find.text('مصدر رسمي'), findsNWidgets(2));
+        expect(find.text('شاهد البث'), findsNWidgets(2));
+
+        final liveStreams = QuranAudioStation.defaultCatalog
+            .where(
+              (station) => station.category == AudioStationCategory.liveStream,
+            )
+            .toList(growable: false);
+        expect(liveStreams, hasLength(2));
+        expect(liveStreams.every((station) => station.isWatchable), isTrue);
+        expect(
+          liveStreams.map((station) => station.watchUrl),
+          containsAll(<String>[
+            'https://www.youtube.com/@SaudiQuranTv/live',
+            'https://www.youtube.com/@SaudiSunnahTv/live',
+          ]),
+        );
 
         // Switch to Radio Stations tab (tap the tab in the TabBar)
         await tester.tap(
@@ -497,6 +514,36 @@ void main() {
         expect(find.text('إذاعة القرآن الكريم من البحرين'), findsOneWidget);
         expect(find.text('إذاعة القرآن الكريم من السودان'), findsOneWidget);
         expect(find.text('إذاعة القرآن الكريم من اليمن'), findsOneWidget);
+
+        quranCubit.close();
+      },
+    );
+
+    testWidgets(
+      '6b. Official live stream cards remain clear on compact mobile width',
+      (tester) async {
+        setTestViewport(tester, size: const Size(320, 900));
+
+        final quranCubit = QuranCubit(
+          repository: globalQuranRepo,
+          storage: storage,
+          audio: audioService,
+          reciter: 'ar.alafasy',
+          fontSize: 32,
+        );
+        await quranCubit.load();
+
+        await tester.pumpWidget(
+          buildTestApp(quranCubit: quranCubit, size: const Size(320, 900)),
+        );
+        await pumpScreen(tester);
+        await tester.tap(find.text('فتح المشغّل القرآني'));
+        await pumpScreen(tester);
+        await tester.tap(find.text('البث المباشر'));
+        await pumpScreen(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('شاهد البث'), findsNWidgets(2));
 
         quranCubit.close();
       },

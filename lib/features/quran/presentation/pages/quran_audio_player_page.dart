@@ -11,6 +11,7 @@ import '../../data/models/quran_models.dart';
 import '../cubit/quran_cubit.dart';
 import '../cubit/quran_state.dart';
 import '../widgets/quran_mini_player.dart';
+import 'haramain_live_page.dart';
 
 /// Dedicated Quran Audio Player page housing Recitations, Live Streams, and Quran Radios.
 class QuranAudioPlayerPage extends StatefulWidget {
@@ -29,8 +30,10 @@ class QuranAudioPlayerPage extends StatefulWidget {
 class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final TextEditingController _reciterSearchController = TextEditingController();
+  final TextEditingController _reciterSearchController =
+      TextEditingController();
   String _reciterFilter = '';
+  String? _openingLiveId;
 
   // Requested reciters that are NOT currently in AppConstants.reciters catalog
   static const List<String> _pendingRequestedReciters = [
@@ -72,11 +75,23 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
           indicatorColor: colors.primary,
           labelColor: colors.primary,
           unselectedLabelColor: colors.textSecondary,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
           tabs: const [
-            Tab(text: 'القراء والتلاوات', icon: Icon(Icons.record_voice_over_rounded, size: 20)),
-            Tab(text: 'البث المباشر', icon: Icon(Icons.mosque_rounded, size: 20)),
-            Tab(text: 'إذاعات القرآن', icon: Icon(Icons.radio_rounded, size: 20)),
+            Tab(
+              text: 'القراء والتلاوات',
+              icon: Icon(Icons.record_voice_over_rounded, size: 20),
+            ),
+            Tab(
+              text: 'البث المباشر',
+              icon: Icon(Icons.mosque_rounded, size: 20),
+            ),
+            Tab(
+              text: 'إذاعات القرآن',
+              icon: Icon(Icons.radio_rounded, size: 20),
+            ),
           ],
         ),
       ),
@@ -93,10 +108,7 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
             ),
           ),
           // Persistent Mini Player at bottom of Audio Hub
-          const SafeArea(
-            top: false,
-            child: QuranMiniPlayer(),
-          ),
+          const SafeArea(top: false, child: QuranMiniPlayer()),
         ],
       ),
     );
@@ -114,14 +126,14 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
     final filteredReciters = _reciterFilter.isEmpty
         ? AppConstants.reciters
         : AppConstants.reciters
-            .where((r) => r.name.contains(_reciterFilter))
-            .toList(growable: false);
+              .where((r) => r.name.contains(_reciterFilter))
+              .toList(growable: false);
 
     final filteredPending = _reciterFilter.isEmpty
         ? _pendingRequestedReciters
         : _pendingRequestedReciters
-            .where((r) => r.contains(_reciterFilter))
-            .toList(growable: false);
+              .where((r) => r.contains(_reciterFilter))
+              .toList(growable: false);
 
     return ListView(
       padding: MishkatSpacing.page,
@@ -133,7 +145,10 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
             hintText: 'ابحث عن قارئ...',
             prefixIcon: const Icon(Icons.search_rounded, size: 20),
             isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             suffixIcon: _reciterFilter.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear_rounded, size: 18),
@@ -202,8 +217,15 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                       ),
                       icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                      label: const Text('اختيار سورة', style: TextStyle(fontSize: 12)),
-                      onPressed: () => _showSurahPickerSheet(context, quranData, activeReciter),
+                      label: const Text(
+                        'اختيار سورة',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () => _showSurahPickerSheet(
+                        context,
+                        quranData,
+                        activeReciter,
+                      ),
                     ),
                 ],
               ),
@@ -218,7 +240,10 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
             Expanded(
               child: Text(
                 'القراء المعتمدون (${filteredReciters.length})',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -313,9 +338,6 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
   // ---------------------------------------------------------------------------
   Widget _buildLiveStreamsTab(BuildContext context) {
     final colors = context.mishkat;
-    final cubit = context.watch<QuranCubit>();
-    final activeStation = cubit.state.activeStation;
-    final isPlaying = cubit.state.audioStatus == QuranAudioStatus.playing;
 
     final liveStreams = QuranAudioStation.defaultCatalog
         .where((s) => s.category == AudioStationCategory.liveStream)
@@ -344,10 +366,10 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
         const SizedBox(height: MishkatSpacing.base),
 
         for (final station in liveStreams)
-          _StationCard(
+          _LiveStreamCard(
             station: station,
-            isActive: activeStation?.id == station.id && isPlaying,
-            onPlay: () => _handleStationPlay(context, station),
+            isOpening: _openingLiveId == station.id,
+            onWatch: () => _openLiveStream(context, station),
           ),
       ],
     );
@@ -401,6 +423,36 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
   // ---------------------------------------------------------------------------
   // Handlers & Sheets
   // ---------------------------------------------------------------------------
+  Future<void> _openLiveStream(
+    BuildContext context,
+    QuranAudioStation station,
+  ) async {
+    final rawUrl = station.watchUrl;
+    final channelId = station.youtubeChannelId;
+    if (rawUrl == null ||
+        rawUrl.isEmpty ||
+        channelId == null ||
+        channelId.isEmpty ||
+        _openingLiveId != null) {
+      return;
+    }
+
+    setState(() => _openingLiveId = station.id);
+    try {
+      await context.read<QuranCubit>().stopAudio();
+      if (!context.mounted) return;
+      await Navigator.of(context).push(HaramainLivePage.route(station));
+    } on Object {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذّر فتح مشغّل البث. حاول مرة أخرى.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _openingLiveId = null);
+    }
+  }
+
   void _handleStationPlay(BuildContext context, QuranAudioStation station) {
     final cubit = context.read<QuranCubit>();
     if (!station.isPlayable) {
@@ -414,18 +466,24 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
             children: [
               Row(
                 children: [
-                  const Icon(Icons.access_time_rounded, size: 18, color: Colors.orange),
+                  const Icon(
+                    Icons.access_time_rounded,
+                    size: 18,
+                    color: Colors.orange,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     station.availabilityLabel,
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                station.notes ??
-                    'رابط البث الرسمي قيد المراجعة والتوثيق التقني لضمان استقرار البث وسلامة المحتوى.',
+                station.notes ?? 'رابط البث الرسمي قيد المراجعة والتوثيق التقني لضمان استقرار البث وسلامة المحتوى.',
                 style: const TextStyle(fontSize: 13, height: 1.5),
               ),
             ],
@@ -476,7 +534,9 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MishkatRadius.xl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MishkatRadius.xl),
+        ),
       ),
       builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.7,
@@ -500,7 +560,10 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
                   const SizedBox(height: 12),
                   Text(
                     'اختر السورة للاستماع بصوت ${reciter.name}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               ),
@@ -606,7 +669,10 @@ class _ReciterTile extends StatelessWidget {
                 children: [
                   Text(
                     reciter.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -634,10 +700,7 @@ class _ReciterTile extends StatelessWidget {
 }
 
 class _PendingReciterTile extends StatelessWidget {
-  const _PendingReciterTile({
-    required this.name,
-    required this.onTap,
-  });
+  const _PendingReciterTile({required this.name, required this.onTap});
 
   final String name;
   final VoidCallback onTap;
@@ -698,6 +761,248 @@ class _PendingReciterTile extends StatelessWidget {
   }
 }
 
+class _LiveStreamCard extends StatelessWidget {
+  const _LiveStreamCard({
+    required this.station,
+    required this.isOpening,
+    required this.onWatch,
+  });
+
+  final QuranAudioStation station;
+  final bool isOpening;
+  final VoidCallback onWatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    final isMakkah = station.id == 'stream_haram_makkah';
+    final accent = isMakkah ? colors.gold : const Color(0xFF65D6B4);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MishkatSpacing.base),
+      child: Semantics(
+        button: true,
+        label: '${station.title}، مباشر الآن، مشاهدة البث الرسمي',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(MishkatRadius.lg),
+          clipBehavior: Clip.antiAlias,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(MishkatRadius.lg),
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: isMakkah
+                    ? [const Color(0xFF0D3C32), const Color(0xFF08271F)]
+                    : [const Color(0xFF174A43), const Color(0xFF0A2D2A)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.primary.withValues(alpha: .16),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: InkWell(
+              onTap: isOpening ? null : onWatch,
+              child: Padding(
+                padding: const EdgeInsets.all(MishkatSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD94343),
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.pill,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.circle, size: 7, color: Colors.white),
+                              SizedBox(width: 5),
+                              Text(
+                                'مباشر الآن',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              const Icon(
+                                Icons.verified_rounded,
+                                color: Colors.white70,
+                                size: 17,
+                              ),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: Text(
+                                  'مصدر رسمي',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: MishkatSpacing.lg),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: .1),
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.md,
+                            ),
+                            border: Border.all(
+                              color: accent.withValues(alpha: .55),
+                            ),
+                          ),
+                          child: Icon(
+                            isMakkah
+                                ? Icons.mosque_rounded
+                                : Icons.account_balance_rounded,
+                            color: accent,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(width: MishkatSpacing.base),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                station.title,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                station.subtitle,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: MishkatSpacing.lg),
+                    Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: .1),
+                    ),
+                    const SizedBox(height: MishkatSpacing.sm),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.live_tv_rounded,
+                                size: 17,
+                                color: accent,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  station.sourceLabel ?? 'البث الرسمي',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accent,
+                            borderRadius: BorderRadius.circular(
+                              MishkatRadius.pill,
+                            ),
+                          ),
+                          child: isOpening
+                              ? const SizedBox.square(
+                                  dimension: 17,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF092B24),
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.play_arrow_rounded,
+                                      size: 19,
+                                      color: Color(0xFF092B24),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'شاهد البث',
+                                      style: TextStyle(
+                                        color: Color(0xFF092B24),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StationCard extends StatelessWidget {
   const _StationCard({
     required this.station,
@@ -742,11 +1047,17 @@ class _StationCard extends StatelessWidget {
                 children: [
                   Text(
                     station.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: station.isPlayable
                           ? colors.primarySoft
@@ -758,7 +1069,9 @@ class _StationCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: station.isPlayable ? colors.primary : Colors.orange,
+                        color: station.isPlayable
+                            ? colors.primary
+                            : Colors.orange,
                       ),
                     ),
                   ),
@@ -783,7 +1096,9 @@ class _StationCard extends StatelessWidget {
             IconButton(
               tooltip: isActive ? 'إيقاف' : 'تشغيل',
               icon: Icon(
-                isActive ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
+                isActive
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.play_circle_fill_rounded,
                 color: colors.primary,
                 size: 32,
               ),

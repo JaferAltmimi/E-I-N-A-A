@@ -333,7 +333,7 @@ class QuranCubit extends Cubit<QuranState> {
     final requestId = ++_playbackRequestId;
     _repeatController.stop();
 
-    if (!station.isPlayable || station.streamUrl == null) {
+    if (!station.isAudioPlayable || station.streamUrl == null) {
       emit(
         state.copyWith(
           audioStatus: QuranAudioStatus.failure,

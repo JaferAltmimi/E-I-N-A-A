@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -95,7 +96,10 @@ class DummyAudioService implements QuranAudioService {
   Duration? get duration => null;
 
   @override
-  Future<void> playAyah({required String reciter, required int globalAyah}) async {}
+  Future<void> playAyah({
+    required String reciter,
+    required int globalAyah,
+  }) async {}
 
   @override
   Future<void> pause() async {}
@@ -145,9 +149,7 @@ QuranData createDummyQuranData() {
 
   return QuranData(
     chapters: [fatiha],
-    juz: const [
-      JuzStart(number: 1, surah: 1, ayah: 1),
-    ],
+    juz: const [JuzStart(number: 1, surah: 1, ayah: 1)],
     pages: const [
       MushafPageInfo(
         page: 1,
@@ -178,48 +180,57 @@ void main() {
 
       expect(ReviewOutcome.easy.resultingStatus, MemorizationStatus.memorized);
       expect(ReviewOutcome.good.resultingStatus, MemorizationStatus.memorized);
-      expect(ReviewOutcome.difficult.resultingStatus, MemorizationStatus.needsRevision);
-      expect(ReviewOutcome.failed.resultingStatus, MemorizationStatus.needsRevision);
-    });
-
-    test('MemorizationReviewRecord JSON round-trip and validation clamping', () {
-      final record = MemorizationReviewRecord(
-        id: 'rev_1',
-        globalAyah: 255,
-        planId: 'plan_1',
-        sessionId: 'sess_1',
-        outcome: ReviewOutcome.easy,
-        mistakeCount: 2,
-        reviewedAt: baseTime,
-        intervalDays: 7,
-        previousStatus: MemorizationStatus.learning,
-        resultingStatus: MemorizationStatus.memorized,
+      expect(
+        ReviewOutcome.difficult.resultingStatus,
+        MemorizationStatus.needsRevision,
       );
-
-      final json = record.toJson();
-      final restored = MemorizationReviewRecord.fromJson(json);
-
-      expect(restored.id, 'rev_1');
-      expect(restored.globalAyah, 255);
-      expect(restored.planId, 'plan_1');
-      expect(restored.sessionId, 'sess_1');
-      expect(restored.outcome, ReviewOutcome.easy);
-      expect(restored.mistakeCount, 2);
-      expect(restored.reviewedAt, baseTime);
-      expect(restored.intervalDays, 7);
-      expect(restored.previousStatus, MemorizationStatus.learning);
-      expect(restored.resultingStatus, MemorizationStatus.memorized);
-
-      // Clamping test
-      final clamped = MemorizationReviewRecord.fromJson(const {
-        'globalAyah': 99999,
-        'mistakeCount': -10,
-        'intervalDays': -5,
-      });
-      expect(clamped.globalAyah, 6236);
-      expect(clamped.mistakeCount, 0);
-      expect(clamped.intervalDays, 0);
+      expect(
+        ReviewOutcome.failed.resultingStatus,
+        MemorizationStatus.needsRevision,
+      );
     });
+
+    test(
+      'MemorizationReviewRecord JSON round-trip and validation clamping',
+      () {
+        final record = MemorizationReviewRecord(
+          id: 'rev_1',
+          globalAyah: 255,
+          planId: 'plan_1',
+          sessionId: 'sess_1',
+          outcome: ReviewOutcome.easy,
+          mistakeCount: 2,
+          reviewedAt: baseTime,
+          intervalDays: 7,
+          previousStatus: MemorizationStatus.learning,
+          resultingStatus: MemorizationStatus.memorized,
+        );
+
+        final json = record.toJson();
+        final restored = MemorizationReviewRecord.fromJson(json);
+
+        expect(restored.id, 'rev_1');
+        expect(restored.globalAyah, 255);
+        expect(restored.planId, 'plan_1');
+        expect(restored.sessionId, 'sess_1');
+        expect(restored.outcome, ReviewOutcome.easy);
+        expect(restored.mistakeCount, 2);
+        expect(restored.reviewedAt, baseTime);
+        expect(restored.intervalDays, 7);
+        expect(restored.previousStatus, MemorizationStatus.learning);
+        expect(restored.resultingStatus, MemorizationStatus.memorized);
+
+        // Clamping test
+        final clamped = MemorizationReviewRecord.fromJson(const {
+          'globalAyah': 99999,
+          'mistakeCount': -10,
+          'intervalDays': -5,
+        });
+        expect(clamped.globalAyah, 6236);
+        expect(clamped.mistakeCount, 0);
+        expect(clamped.intervalDays, 0);
+      },
+    );
 
     test('MemorizationItem Q9 fields serialization round-trip', () {
       final item = MemorizationItem(
@@ -245,49 +256,52 @@ void main() {
   });
 
   group('Q9 — Adaptive Murajaah Engine & Interval Progression', () {
-    test('First review intervals: easy=7d, good=3d, difficult=1d, failed=0d', () {
-      final freshItem = MemorizationItem(
-        globalAyah: 10,
-        status: MemorizationStatus.learning,
-        updatedAt: baseTime,
-      );
+    test(
+      'First review intervals: easy=7d, good=3d, difficult=1d, failed=0d',
+      () {
+        final freshItem = MemorizationItem(
+          globalAyah: 10,
+          status: MemorizationStatus.learning,
+          updatedAt: baseTime,
+        );
 
-      final easyRes = engine.calculateNextInterval(
-        item: freshItem,
-        outcome: ReviewOutcome.easy,
-        now: baseTime,
-      );
-      expect(easyRes.intervalDays, 7);
-      expect(easyRes.nextReviewAt, baseTime.add(const Duration(days: 7)));
-      expect(easyRes.consecutiveSuccesses, 1);
+        final easyRes = engine.calculateNextInterval(
+          item: freshItem,
+          outcome: ReviewOutcome.easy,
+          now: baseTime,
+        );
+        expect(easyRes.intervalDays, 7);
+        expect(easyRes.nextReviewAt, baseTime.add(const Duration(days: 7)));
+        expect(easyRes.consecutiveSuccesses, 1);
 
-      final goodRes = engine.calculateNextInterval(
-        item: freshItem,
-        outcome: ReviewOutcome.good,
-        now: baseTime,
-      );
-      expect(goodRes.intervalDays, 3);
-      expect(goodRes.nextReviewAt, baseTime.add(const Duration(days: 3)));
-      expect(goodRes.consecutiveSuccesses, 1);
+        final goodRes = engine.calculateNextInterval(
+          item: freshItem,
+          outcome: ReviewOutcome.good,
+          now: baseTime,
+        );
+        expect(goodRes.intervalDays, 3);
+        expect(goodRes.nextReviewAt, baseTime.add(const Duration(days: 3)));
+        expect(goodRes.consecutiveSuccesses, 1);
 
-      final diffRes = engine.calculateNextInterval(
-        item: freshItem,
-        outcome: ReviewOutcome.difficult,
-        now: baseTime,
-      );
-      expect(diffRes.intervalDays, 1);
-      expect(diffRes.nextReviewAt, baseTime.add(const Duration(days: 1)));
-      expect(diffRes.consecutiveSuccesses, 0);
+        final diffRes = engine.calculateNextInterval(
+          item: freshItem,
+          outcome: ReviewOutcome.difficult,
+          now: baseTime,
+        );
+        expect(diffRes.intervalDays, 1);
+        expect(diffRes.nextReviewAt, baseTime.add(const Duration(days: 1)));
+        expect(diffRes.consecutiveSuccesses, 0);
 
-      final failRes = engine.calculateNextInterval(
-        item: freshItem,
-        outcome: ReviewOutcome.failed,
-        now: baseTime,
-      );
-      expect(failRes.intervalDays, 0);
-      expect(failRes.nextReviewAt, baseTime);
-      expect(failRes.consecutiveSuccesses, 0);
-    });
+        final failRes = engine.calculateNextInterval(
+          item: freshItem,
+          outcome: ReviewOutcome.failed,
+          now: baseTime,
+        );
+        expect(failRes.intervalDays, 0);
+        expect(failRes.nextReviewAt, baseTime);
+        expect(failRes.consecutiveSuccesses, 0);
+      },
+    );
 
     test('Repeated consecutive Good expands interval across ladder (3 -> 7 -> 14 -> 30 -> 60)', () {
       var item = MemorizationItem(
@@ -374,88 +388,112 @@ void main() {
   });
 
   group('Q9 — Adaptive Schedule State & Priority Calculation', () {
-    test('Calculates schedule state: due today, overdue, weak, urgent, notDue', () {
-      // notStarted -> notDue
-      final notStarted = MemorizationItem(
-        globalAyah: 1,
-        status: MemorizationStatus.notStarted,
-        updatedAt: baseTime,
-      );
-      expect(engine.calculateScheduleState(notStarted, now: baseTime), AdaptiveScheduleState.notDue);
+    test(
+      'Calculates schedule state: due today, overdue, weak, urgent, notDue',
+      () {
+        // notStarted -> notDue
+        final notStarted = MemorizationItem(
+          globalAyah: 1,
+          status: MemorizationStatus.notStarted,
+          updatedAt: baseTime,
+        );
+        expect(
+          engine.calculateScheduleState(notStarted, now: baseTime),
+          AdaptiveScheduleState.notDue,
+        );
 
-      // Due today
-      final dueToday = MemorizationItem(
-        globalAyah: 2,
-        status: MemorizationStatus.memorized,
-        nextReviewAt: baseTime,
-        updatedAt: baseTime,
-      );
-      expect(engine.calculateScheduleState(dueToday, now: baseTime), AdaptiveScheduleState.due);
+        // Due today
+        final dueToday = MemorizationItem(
+          globalAyah: 2,
+          status: MemorizationStatus.memorized,
+          nextReviewAt: baseTime,
+          updatedAt: baseTime,
+        );
+        expect(
+          engine.calculateScheduleState(dueToday, now: baseTime),
+          AdaptiveScheduleState.due,
+        );
 
-      // Overdue (3 days late)
-      final overdue = MemorizationItem(
-        globalAyah: 3,
-        status: MemorizationStatus.memorized,
-        nextReviewAt: baseTime.subtract(const Duration(days: 3)),
-        updatedAt: baseTime,
-      );
-      expect(engine.calculateScheduleState(overdue, now: baseTime), AdaptiveScheduleState.overdue);
+        // Overdue (3 days late)
+        final overdue = MemorizationItem(
+          globalAyah: 3,
+          status: MemorizationStatus.memorized,
+          nextReviewAt: baseTime.subtract(const Duration(days: 3)),
+          updatedAt: baseTime,
+        );
+        expect(
+          engine.calculateScheduleState(overdue, now: baseTime),
+          AdaptiveScheduleState.overdue,
+        );
 
-      // Urgent (critical mistakes >= 3 and needsRevision)
-      final urgent = MemorizationItem(
-        globalAyah: 4,
-        status: MemorizationStatus.needsRevision,
-        mistakeCount: 4,
-        updatedAt: baseTime,
-      );
-      expect(engine.calculateScheduleState(urgent, now: baseTime), AdaptiveScheduleState.urgent);
+        // Urgent (critical mistakes >= 3 and needsRevision)
+        final urgent = MemorizationItem(
+          globalAyah: 4,
+          status: MemorizationStatus.needsRevision,
+          mistakeCount: 4,
+          updatedAt: baseTime,
+        );
+        expect(
+          engine.calculateScheduleState(urgent, now: baseTime),
+          AdaptiveScheduleState.urgent,
+        );
 
-      // Weak (needsRevision with 1 mistake)
-      final weak = MemorizationItem(
-        globalAyah: 5,
-        status: MemorizationStatus.needsRevision,
-        mistakeCount: 1,
-        updatedAt: baseTime,
-      );
-      expect(engine.calculateScheduleState(weak, now: baseTime), AdaptiveScheduleState.weak);
+        // Weak (needsRevision with 1 mistake)
+        final weak = MemorizationItem(
+          globalAyah: 5,
+          status: MemorizationStatus.needsRevision,
+          mistakeCount: 1,
+          updatedAt: baseTime,
+        );
+        expect(
+          engine.calculateScheduleState(weak, now: baseTime),
+          AdaptiveScheduleState.weak,
+        );
 
-      // Future review -> notDue
-      final future = MemorizationItem(
-        globalAyah: 6,
-        status: MemorizationStatus.memorized,
-        nextReviewAt: baseTime.add(const Duration(days: 5)),
-        updatedAt: baseTime,
-      );
-      expect(engine.calculateScheduleState(future, now: baseTime), AdaptiveScheduleState.notDue);
-    });
+        // Future review -> notDue
+        final future = MemorizationItem(
+          globalAyah: 6,
+          status: MemorizationStatus.memorized,
+          nextReviewAt: baseTime.add(const Duration(days: 5)),
+          updatedAt: baseTime,
+        );
+        expect(
+          engine.calculateScheduleState(future, now: baseTime),
+          AdaptiveScheduleState.notDue,
+        );
+      },
+    );
 
-    test('Priority score ranks urgent and overdue higher than well-retained Ayahs', () {
-      final urgentItem = MemorizationItem(
-        globalAyah: 20,
-        status: MemorizationStatus.needsRevision,
-        mistakeCount: 5,
-        nextReviewAt: baseTime.subtract(const Duration(days: 4)),
-        lastOutcome: ReviewOutcome.failed,
-        updatedAt: baseTime,
-      );
+    test(
+      'Priority score ranks urgent and overdue higher than well-retained Ayahs',
+      () {
+        final urgentItem = MemorizationItem(
+          globalAyah: 20,
+          status: MemorizationStatus.needsRevision,
+          mistakeCount: 5,
+          nextReviewAt: baseTime.subtract(const Duration(days: 4)),
+          lastOutcome: ReviewOutcome.failed,
+          updatedAt: baseTime,
+        );
 
-      final stableItem = MemorizationItem(
-        globalAyah: 10,
-        status: MemorizationStatus.memorized,
-        consecutiveSuccesses: 4,
-        mistakeCount: 0,
-        nextReviewAt: baseTime.add(const Duration(days: 10)),
-        lastOutcome: ReviewOutcome.easy,
-        updatedAt: baseTime,
-      );
+        final stableItem = MemorizationItem(
+          globalAyah: 10,
+          status: MemorizationStatus.memorized,
+          consecutiveSuccesses: 4,
+          mistakeCount: 0,
+          nextReviewAt: baseTime.add(const Duration(days: 10)),
+          lastOutcome: ReviewOutcome.easy,
+          updatedAt: baseTime,
+        );
 
-      final urgentScore = engine.calculatePriority(urgentItem, now: baseTime);
-      final stableScore = engine.calculatePriority(stableItem, now: baseTime);
+        final urgentScore = engine.calculatePriority(urgentItem, now: baseTime);
+        final stableScore = engine.calculatePriority(stableItem, now: baseTime);
 
-      expect(urgentScore.totalScore > stableScore.totalScore, true);
-      expect(urgentScore.scheduleState, AdaptiveScheduleState.urgent);
-      expect(stableScore.scheduleState, AdaptiveScheduleState.notDue);
-    });
+        expect(urgentScore.totalScore > stableScore.totalScore, true);
+        expect(urgentScore.scheduleState, AdaptiveScheduleState.urgent);
+        expect(stableScore.scheduleState, AdaptiveScheduleState.notDue);
+      },
+    );
 
     test('Deterministic queue generation with categories and tie-breaking', () {
       final items = [
@@ -614,25 +652,28 @@ void main() {
       expect(restored.last.id, 'rev_2499');
     });
 
-    test('Corrupted history records are safely skipped without throwing', () async {
-      storage._store[QuranMemorizationRepository.historyStorageKey] = [
-        {'invalid': 'garbage'},
-        'corrupt string',
-        null,
-        {
-          'id': 'valid_rev',
-          'g': 10,
-          'o': 'good',
-          'm': 0,
-          'r': baseTime.toIso8601String(),
-          'iv': 3,
-        }
-      ];
+    test(
+      'Corrupted history records are safely skipped without throwing',
+      () async {
+        storage._store[QuranMemorizationRepository.historyStorageKey] = [
+          {'invalid': 'garbage'},
+          'corrupt string',
+          null,
+          {
+            'id': 'valid_rev',
+            'g': 10,
+            'o': 'good',
+            'm': 0,
+            'r': baseTime.toIso8601String(),
+            'iv': 3,
+          },
+        ];
 
-      final history = await repository.loadHistory();
-      expect(history.length, 1);
-      expect(history.first.globalAyah, 10);
-    });
+        final history = await repository.loadHistory();
+        expect(history.length, 1);
+        expect(history.first.globalAyah, 10);
+      },
+    );
   });
 
   group('Q9 — QuranMemorizationCubit Adaptive Actions', () {
@@ -700,30 +741,33 @@ void main() {
       expect(cubit.state.activeSession?.currentGlobalAyah, 3);
     });
 
-    test('startAdaptiveRevisionSession generates queue according to category', () async {
-      // Set up items with varying states
-      await cubit.recordReviewOutcome(
-        globalAyah: 10,
-        outcome: ReviewOutcome.failed,
-        now: baseTime,
-      );
-      await cubit.recordReviewOutcome(
-        globalAyah: 20,
-        outcome: ReviewOutcome.difficult,
-        now: baseTime,
-      );
+    test(
+      'startAdaptiveRevisionSession generates queue according to category',
+      () async {
+        // Set up items with varying states
+        await cubit.recordReviewOutcome(
+          globalAyah: 10,
+          outcome: ReviewOutcome.failed,
+          now: baseTime,
+        );
+        await cubit.recordReviewOutcome(
+          globalAyah: 20,
+          outcome: ReviewOutcome.difficult,
+          now: baseTime,
+        );
 
-      cubit.startAdaptiveRevisionSession(
-        category: AdaptiveMurajaahCategory.weak,
-        limit: 10,
-      );
+        cubit.startAdaptiveRevisionSession(
+          category: AdaptiveMurajaahCategory.weak,
+          limit: 10,
+        );
 
-      final session = cubit.state.activeSession;
-      expect(session, isNotNull);
-      expect(session?.sessionType, MemorizationSessionType.revision);
-      expect(session?.queue.contains(10), true);
-      expect(session?.queue.contains(20), true);
-    });
+        final session = cubit.state.activeSession;
+        expect(session, isNotNull);
+        expect(session?.sessionType, MemorizationSessionType.revision);
+        expect(session?.queue.contains(10), true);
+        expect(session?.queue.contains(20), true);
+      },
+    );
 
     test('Adaptive getters count reviews today, this week, and this month correctly', () async {
       final now = DateTime(2026, 10, 5, 12, 0);
@@ -779,7 +823,9 @@ void main() {
       await quranCubit.close();
     });
 
-    testWidgets('MemorizationSessionPage renders 4-tier assessment buttons', (tester) async {
+    testWidgets('MemorizationSessionPage renders 4-tier assessment buttons', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1000, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -821,32 +867,39 @@ void main() {
       expect(cubit.state.history.first.outcome, ReviewOutcome.easy);
     });
 
-    testWidgets('QuranMemorizationPage displays adaptive category chips and due badges', (tester) async {
-      tester.view.physicalSize = const Size(1000, 2000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'QuranMemorizationPage explains and opens adaptive review types',
+      (tester) async {
+        tester.view.physicalSize = const Size(1000, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: MultiBlocProvider(
-            providers: [
-              BlocProvider<QuranMemorizationCubit>.value(value: cubit),
-              BlocProvider<QuranCubit>.value(value: quranCubit),
-            ],
-            child: const QuranMemorizationPage(),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MultiBlocProvider(
+              providers: [
+                BlocProvider<QuranMemorizationCubit>.value(value: cubit),
+                BlocProvider<QuranCubit>.value(value: quranCubit),
+              ],
+              child: const QuranMemorizationPage(),
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('المراجعة الذكية والتثبيت'), findsOneWidget);
-      expect(find.text('مستحقة اليوم'), findsWidgets);
-      expect(find.text('متأخرة'), findsWidgets);
-      expect(find.text('تحتاج تثبيت'), findsWidgets);
-      expect(find.text('شاملة'), findsOneWidget);
-      expect(find.text('صعبة مؤخراً'), findsOneWidget);
-    });
+        expect(find.text('المراجعة الذكية والتثبيت'), findsOneWidget);
+        expect(find.text('اختيار نوع المراجعة'), findsOneWidget);
+        await tester.tap(find.text('اختيار نوع المراجعة'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('مستحقة اليوم'), findsWidgets);
+        expect(find.text('متأخرة'), findsWidgets);
+        expect(find.text('تحتاج تثبيت'), findsWidgets);
+        expect(find.text('شاملة'), findsOneWidget);
+        expect(find.text('صعبة مؤخراً'), findsOneWidget);
+      },
+    );
   });
 }

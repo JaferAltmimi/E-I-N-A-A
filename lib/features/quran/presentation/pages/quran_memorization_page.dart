@@ -801,11 +801,14 @@ class _RevisionDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.mishkat;
-    final categories = AdaptiveMurajaahCategory.values
-        .where((category) => category != AdaptiveMurajaahCategory.mistakeBased)
-        .toList();
+    final suggestedCount = state
+        .generateAdaptiveQueue(
+          category: AdaptiveMurajaahCategory.all,
+          limit: 20,
+        )
+        .length;
     return MishkatCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -821,28 +824,262 @@ class _RevisionDetails extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
-            'ابدأ فقط بالنوع الذي تحتاجه الآن.',
-            style: TextStyle(color: colors.textSecondary, fontSize: 11.5),
+            'يرتّب لك التطبيق الآيات التي تحتاجها الآن اعتماداً على موعد آخر مراجعة وأخطائك السابقة.',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 12,
+              height: 1.5,
+            ),
           ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (var index = 0; index < categories.length; index++) ...[
-                  ActionChip(
-                    label: Text(categories[index].label),
-                    onPressed: () =>
-                        _startRevision(context, quranData, categories[index]),
+          const SizedBox(height: 14),
+          MishkatPrimaryAction(
+            label: suggestedCount == 0
+                ? 'لا توجد مراجعة مستحقة الآن'
+                : 'ابدأ المراجعة المقترحة · $suggestedCount آية',
+            icon: Icon(
+              suggestedCount == 0
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.play_arrow_rounded,
+            ),
+            isFullWidth: true,
+            onPressed: suggestedCount == 0
+                ? null
+                : () => _startRevision(
+                    context,
+                    quranData,
+                    AdaptiveMurajaahCategory.all,
                   ),
-                  if (index != categories.length - 1) const SizedBox(width: 8),
-                ],
-              ],
+          ),
+          const SizedBox(height: 8),
+          MishkatSecondaryAction(
+            label: 'اختيار نوع المراجعة',
+            icon: const Icon(Icons.tune_rounded),
+            isFullWidth: true,
+            onPressed: () => _showReviewTypesSheet(
+              context,
+              state: state,
+              quranData: quranData,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+void _showReviewTypesSheet(
+  BuildContext context, {
+  required QuranMemorizationState state,
+  required QuranData quranData,
+}) {
+  final options =
+      <
+        ({
+          AdaptiveMurajaahCategory category,
+          IconData icon,
+          String description,
+          int count,
+        })
+      >[
+        (
+          category: AdaptiveMurajaahCategory.dueToday,
+          icon: Icons.today_outlined,
+          description: 'حان موعدها اليوم حسب جدول مراجعتك.',
+          count: state.dueTodayAyahs().length,
+        ),
+        (
+          category: AdaptiveMurajaahCategory.overdue,
+          icon: Icons.history_rounded,
+          description: 'فات موعدها وتحتاج أن تبدأ بها أولاً.',
+          count: state.overdueAyahs().length,
+        ),
+        (
+          category: AdaptiveMurajaahCategory.weak,
+          icon: Icons.build_circle_outlined,
+          description: 'تكررت فيها الأخطاء أو تحتاج تثبيتاً.',
+          count: state.weakAyahs().length,
+        ),
+        (
+          category: AdaptiveMurajaahCategory.recentlyDifficult,
+          icon: Icons.psychology_alt_outlined,
+          description: 'كانت صعبة في آخر جلسات التسميع.',
+          count: state.recentlyDifficultAyahs().length,
+        ),
+        (
+          category: AdaptiveMurajaahCategory.all,
+          icon: Icons.auto_awesome_rounded,
+          description: 'مزيج ذكي مرتب من الأهم فالأقل أولوية.',
+          count: state
+              .generateAdaptiveQueue(
+                category: AdaptiveMurajaahCategory.all,
+                limit: 20,
+              )
+              .length,
+        ),
+      ];
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(MishkatRadius.xl),
+      ),
+    ),
+    builder: (sheetContext) {
+      final colors = sheetContext.mishkat;
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textMuted.withValues(alpha: .35),
+                    borderRadius: MishkatRadius.brPill,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'اختر نوع المراجعة',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'إن لم تكن متأكداً، اختر «شاملة».',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      for (var index = 0; index < options.length; index++) ...[
+                        _ReviewOption(
+                          title: options[index].category.label,
+                          description: options[index].description,
+                          icon: options[index].icon,
+                          count: options[index].count,
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            _startRevision(
+                              context,
+                              quranData,
+                              options[index].category,
+                            );
+                          },
+                        ),
+                        if (index != options.length - 1)
+                          const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _ReviewOption extends StatelessWidget {
+  const _ReviewOption({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.count,
+    required this.onTap,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Material(
+      color: colors.surfaceVariant,
+      borderRadius: MishkatRadius.brMd,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: MishkatRadius.brMd,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colors.primarySoft,
+                  borderRadius: MishkatRadius.brSm,
+                ),
+                child: Icon(icon, color: colors.primary, size: 20),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                constraints: const BoxConstraints(minWidth: 34),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: count == 0
+                      ? colors.surface
+                      : colors.primary.withValues(alpha: .12),
+                  borderRadius: MishkatRadius.brPill,
+                ),
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: count == 0 ? colors.textMuted : colors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

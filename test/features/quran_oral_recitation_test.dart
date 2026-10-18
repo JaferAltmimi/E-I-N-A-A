@@ -158,14 +158,17 @@ void main() {
       );
 
       expect(result.omissionsCount, greaterThanOrEqualTo(1));
-      final omission = result.discrepancies.firstWhere((d) => d.status.isOmission);
+      final omission = result.discrepancies.firstWhere(
+        (d) => d.status.isOmission,
+      );
       expect(omission.expectedNormalized, 'رب');
       expect(omission.explanation, contains('سقط في التلاوة'));
     });
 
     test('4. Reciter substitutes a word (Likely Substitution detected)', () {
       // Substituted 'يوم الدين' with 'يوم الحساب'
-      const transcript = 'بسم الله الرحمن الرحيم الحمد لله رب العالمين الرحمن الرحيم مالك يوم الحساب';
+      const transcript =
+          'بسم الله الرحمن الرحيم الحمد لله رب العالمين الرحمن الرحيم مالك يوم الحساب';
 
       final result = engine.align(
         targetWords: targetWords,
@@ -173,7 +176,9 @@ void main() {
       );
 
       expect(result.substitutionsCount, greaterThanOrEqualTo(1));
-      final sub = result.discrepancies.firstWhere((d) => d.status.isSubstitution);
+      final sub = result.discrepancies.firstWhere(
+        (d) => d.status.isSubstitution,
+      );
       expect(sub.expectedNormalized, 'الدين');
       expect(sub.recognizedWord, 'الحساب');
       expect(sub.explanation, contains('خطأ أو استبدال'));
@@ -207,21 +212,24 @@ void main() {
       expect(result.discrepancies.any((d) => d.status.isUncertain), isTrue);
     });
 
-    test('7. Basmalah preamble before non-Fatiha surah is handled without error', () {
-      // Target is Ayah 2 onwards (الحمد لله رب العالمين)
-      final subTarget = targetWords.sublist(4, 8);
-      // User recites Basmalah first then starts
-      const transcript = 'بسم الله الرحمن الرحيم الحمد لله رب العالمين';
+    test(
+      '7. Basmalah preamble before non-Fatiha surah is handled without error',
+      () {
+        // Target is Ayah 2 onwards (الحمد لله رب العالمين)
+        final subTarget = targetWords.sublist(4, 8);
+        // User recites Basmalah first then starts
+        const transcript = 'بسم الله الرحمن الرحيم الحمد لله رب العالمين';
 
-      final result = engine.align(
-        targetWords: subTarget,
-        transcript: transcript,
-      );
+        final result = engine.align(
+          targetWords: subTarget,
+          transcript: transcript,
+        );
 
-      expect(result.omissionsCount, 0);
-      expect(result.substitutionsCount, 0);
-      expect(result.matchedWordsCount, 4);
-    });
+        expect(result.omissionsCount, 0);
+        expect(result.substitutionsCount, 0);
+        expect(result.matchedWordsCount, 4);
+      },
+    );
   });
 
   group('QuranOralRecitationCubit Production Tests', () {
@@ -255,61 +263,103 @@ void main() {
       await memCubit.close();
     });
 
-    test('1. prepareSession initializes target tokens and sets ready state', () async {
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+    test(
+      '1. prepareSession initializes target tokens and sets ready state',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
 
-      expect(oralCubit.state.surahName, 'الفاتحة');
-      expect(oralCubit.state.targetWords.length, 8); // 4 words in Ayah 1 + 4 words in Ayah 2
-      expect(oralCubit.state.lifecycle, OralRecitationLifecycle.ready);
-      expect(oralCubit.state.sessionId, isNotNull);
-    });
+        expect(oralCubit.state.surahName, 'الفاتحة');
+        expect(
+          oralCubit.state.targetWords.length,
+          8,
+        ); // 4 words in Ayah 1 + 4 words in Ayah 2
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.ready);
+        expect(oralCubit.state.sessionId, isNotNull);
+      },
+    );
 
-    test('2. startRecitation stops background audio and begins listening', () async {
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
-      await oralCubit.startRecitation();
+    test(
+      '2. startRecitation stops background audio and begins listening',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
 
-      expect(fakeAudioService.stopCalled, isTrue);
-      expect(mockSpeech.isListening, isTrue);
-      expect(oralCubit.state.lifecycle, OralRecitationLifecycle.listening);
-    });
+        expect(fakeAudioService.stopCalled, isTrue);
+        expect(mockSpeech.isListening, isTrue);
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.listening);
+      },
+    );
 
     test('3. Permission denial emits permissionDenied lifecycle', () async {
       mockSpeech.setPermission(false);
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+      await oralCubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
       await oralCubit.startRecitation();
 
-      expect(oralCubit.state.lifecycle, OralRecitationLifecycle.permissionDenied);
+      expect(
+        oralCubit.state.lifecycle,
+        OralRecitationLifecycle.permissionDenied,
+      );
       expect(oralCubit.state.errorMessage, isNotNull);
     });
 
-    test('4. Streaming speech transcript updates alignment and progress', () async {
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
-      await oralCubit.startRecitation();
+    test(
+      '4. Streaming speech transcript updates alignment and progress',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
 
-      mockSpeech.emitTranscript('بسم الله الرحمن الرحيم');
-      await pumpEventQueue();
+        mockSpeech.emitTranscript('بسم الله الرحمن الرحيم');
+        await pumpEventQueue();
 
-      expect(oralCubit.state.matchedWordsCount, 4);
-      expect(oralCubit.state.progressPercentage, 50.0);
-      expect(oralCubit.state.liveTranscript, 'بسم الله الرحمن الرحيم');
-      expect(oralCubit.state.completedGlobalAyahs, contains(1));
-    });
+        expect(oralCubit.state.matchedWordsCount, 4);
+        expect(oralCubit.state.progressPercentage, 50.0);
+        expect(oralCubit.state.liveTranscript, 'بسم الله الرحمن الرحيم');
+        expect(oralCubit.state.completedGlobalAyahs, contains(1));
+      },
+    );
 
-    test('5. Pausing and resuming recitation controls recognition stream', () async {
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
-      await oralCubit.startRecitation();
+    test(
+      '5. Pausing and resuming recitation controls recognition stream',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
 
-      await oralCubit.pauseRecitation();
-      expect(oralCubit.state.lifecycle, OralRecitationLifecycle.paused);
-      expect(mockSpeech.isListening, isFalse);
+        await oralCubit.pauseRecitation();
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.paused);
+        expect(mockSpeech.isListening, isFalse);
 
-      await oralCubit.resumeRecitation();
-      expect(oralCubit.state.lifecycle, OralRecitationLifecycle.listening);
-      expect(mockSpeech.isListening, isTrue);
-    });
+        await oralCubit.resumeRecitation();
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.listening);
+        expect(mockSpeech.isListening, isTrue);
+      },
+    );
 
     test('6. Revealing and hiding authoritative Ayah text', () async {
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+      await oralCubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
 
       oralCubit.revealAyah(1);
       expect(oralCubit.state.revealedGlobals, contains(1));
@@ -319,7 +369,11 @@ void main() {
     });
 
     test('7. Completing full sequence triggers summary and allows memorization commit', () async {
-      await oralCubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+      await oralCubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
       await oralCubit.startRecitation();
 
       mockSpeech.emitTranscript('بسم الله الرحمن الرحيم الحمد لله رب العالمين');
@@ -337,6 +391,70 @@ void main() {
       expect(memCubit.state.history.length, 2); // 2 Ayahs committed
       expect(memCubit.state.history.first.globalAyah, 1);
     });
+
+    test(
+      '8. Recognition failure pauses safely and preserves session progress',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
+        mockSpeech.emitTranscript('بسم الله');
+        await pumpEventQueue();
+        final progressBeforeError = oralCubit.state.matchedWordsCount;
+
+        mockSpeech.emitError('تعذّر الوصول إلى الميكروفون.');
+        await pumpEventQueue();
+
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.paused);
+        expect(oralCubit.state.matchedWordsCount, progressBeforeError);
+        expect(oralCubit.state.errorMessage, contains('الميكروفون'));
+      },
+    );
+
+    test('9. Empty session cannot write false review history', () async {
+      await oralCubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
+      await oralCubit.finishSession();
+      await oralCubit.commitToMemorization();
+
+      expect(oralCubit.state.isMemorizationCommitted, isFalse);
+      expect(memCubit.state.history, isEmpty);
+      expect(oralCubit.state.errorMessage, contains('لم تُسمع آية'));
+    });
+
+    test(
+      '10. Memorization outcome is calculated independently for each Ayah',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
+        mockSpeech.emitTranscript(
+          'بسم الله الرحمن الرحيم خطأ خطأ خطأ خطأ',
+          isFinal: true,
+        );
+        await pumpEventQueue();
+        await oralCubit.commitToMemorization();
+
+        expect(memCubit.state.history, hasLength(2));
+        final first = memCubit.state.history.firstWhere(
+          (record) => record.globalAyah == 1,
+        );
+        final second = memCubit.state.history.firstWhere(
+          (record) => record.globalAyah == 2,
+        );
+        expect(first.outcome.name, 'easy');
+        expect(second.outcome.name, 'failed');
+      },
+    );
   });
 
   group('QuranOralRecitationPage Widget Tests', () {
@@ -355,7 +473,9 @@ void main() {
       await memCubit.load();
     });
 
-    testWidgets('Renders Oral Recitation page with setup and start button', (tester) async {
+    testWidgets('Renders Oral Recitation page with setup and start button', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MultiBlocProvider(
           providers: [
@@ -380,38 +500,76 @@ void main() {
       expect(find.text('جاهز للتسميع'), findsOneWidget);
     });
 
-    testWidgets('Tapping start activates microphone listening state and updates UI', (tester) async {
+    testWidgets(
+      'Tapping start activates microphone listening state and updates UI',
+      (tester) async {
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<QuranMemorizationCubit>.value(value: memCubit),
+              RepositoryProvider<QuranRepository>.value(value: fakeQuranRepo),
+            ],
+            child: MaterialApp(
+              home: QuranOralRecitationPage(
+                surahNumber: 1,
+                startGlobalAyah: 1,
+                endGlobalAyah: 2,
+                speechService: mockSpeech,
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('بدء التسميع'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('جاري الاستماع...'), findsOneWidget);
+        expect(find.text('إيقاف مؤقت'), findsOneWidget);
+
+        // Emit recognized words
+        mockSpeech.emitTranscript('بسم الله');
+        await tester.pumpAndSettle();
+
+        expect(find.text('مسموع: '), findsOneWidget);
+        expect(find.text('بسم الله'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Moving app to background pauses microphone capture', (
+      tester,
+    ) async {
+      final oralCubit = QuranOralRecitationCubit(
+        speechService: mockSpeech,
+        quranRepository: fakeQuranRepo,
+        memorizationCubit: memCubit,
+      );
+      await oralCubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
+      await oralCubit.startRecitation();
+
       await tester.pumpWidget(
         MultiBlocProvider(
           providers: [
             BlocProvider<QuranMemorizationCubit>.value(value: memCubit),
             RepositoryProvider<QuranRepository>.value(value: fakeQuranRepo),
           ],
-          child: MaterialApp(
-            home: QuranOralRecitationPage(
-              surahNumber: 1,
-              startGlobalAyah: 1,
-              endGlobalAyah: 2,
-              speechService: mockSpeech,
-            ),
-          ),
+          child: MaterialApp(home: QuranOralRecitationPage(cubit: oralCubit)),
         ),
       );
+      await tester.pumpAndSettle();
+      expect(mockSpeech.isListening, isTrue);
 
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('بدء التسميع'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('جاري الاستماع...'), findsOneWidget);
-      expect(find.text('إيقاف مؤقت'), findsOneWidget);
-
-      // Emit recognized words
-      mockSpeech.emitTranscript('بسم الله');
-      await tester.pumpAndSettle();
-
-      expect(find.text('مسموع: '), findsOneWidget);
-      expect(find.text('بسم الله'), findsOneWidget);
+      expect(mockSpeech.isListening, isFalse);
+      expect(oralCubit.state.lifecycle, OralRecitationLifecycle.paused);
+      await oralCubit.close();
     });
   });
 }

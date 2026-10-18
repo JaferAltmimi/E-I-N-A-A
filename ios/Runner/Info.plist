@@ -23,7 +23,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>يستخدم مشكاة الميكروفون للاستماع لتلاوتك أثناء جلسات التسميع الشفهي والتحقق من الحفظ على جهازك دون إرسال تسجيلاتك لأي خوادم خارجية.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>يستخدم مشكاة التعرف على الصوت لمطابقة تلاوتك مع الآيات القرآنية ومساعدتك على كشف الأخطاء الإملائية وتجاوز النسيان.</string>
+	<string>يستخدم مشكاة التعرف الصوتي المحلي لمطابقة تلاوتك مع الآيات أثناء جلسة التسميع، ولا يحتفظ التطبيق بتسجيلك الصوتي.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

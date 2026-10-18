@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/offline_audio_download_controller.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../data/models/memorization_status.dart';
 import '../../data/models/mushaf_layout_models.dart';
@@ -107,8 +109,9 @@ class AyahActionSheet extends StatelessWidget {
                           height: 4,
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.2),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.2,
+                            ),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -187,10 +190,10 @@ class AyahActionSheet extends StatelessWidget {
                         builder: (context, state) {
                           final isThisAyahPlaying =
                               state.audioStatus == QuranAudioStatus.playing &&
-                                  state.audioGlobalAyah == ayah.globalAyah;
+                              state.audioGlobalAyah == ayah.globalAyah;
                           final isThisAyahLoading =
                               state.audioStatus == QuranAudioStatus.loading &&
-                                  state.audioGlobalAyah == ayah.globalAyah;
+                              state.audioGlobalAyah == ayah.globalAyah;
 
                           return FilledButton.icon(
                             style: FilledButton.styleFrom(
@@ -205,25 +208,31 @@ class AyahActionSheet extends StatelessWidget {
                                 ? null
                                 : () {
                                     final cubit = context.read<QuranCubit>();
-                                    final settingsCubit =
-                                        context.read<SettingsCubit?>();
-                                    final continuous = settingsCubit
-                                            ?.state.settings.quranContinuous ??
+                                    final settingsCubit = context
+                                        .read<SettingsCubit?>();
+                                    final continuous =
+                                        settingsCubit
+                                            ?.state
+                                            .settings
+                                            .quranContinuous ??
                                         true;
-                                    final autoScroll = settingsCubit
-                                            ?.state.settings.quranAutoScroll ??
+                                    final autoScroll =
+                                        settingsCubit
+                                            ?.state
+                                            .settings
+                                            .quranAutoScroll ??
                                         true;
                                     if (isThisAyahPlaying) {
-                                       cubit.toggleAudio(
-                                         continuous: continuous,
-                                         autoScroll: autoScroll,
-                                       );
+                                      cubit.toggleAudio(
+                                        continuous: continuous,
+                                        autoScroll: autoScroll,
+                                      );
                                     } else {
-                                       cubit.playAyah(
-                                         ayah.globalAyah,
-                                         continuous: continuous,
-                                         autoScroll: autoScroll,
-                                       );
+                                      cubit.playAyah(
+                                        ayah.globalAyah,
+                                        continuous: continuous,
+                                        autoScroll: autoScroll,
+                                      );
                                     }
                                   },
                             icon: isThisAyahLoading
@@ -249,6 +258,74 @@ class AyahActionSheet extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Builder(
+                        builder: (context) {
+                          OfflineAudioDownloadController? downloads;
+                          try {
+                            downloads = context
+                                .read<OfflineAudioDownloadController>();
+                          } catch (_) {}
+                          if (downloads == null) return const SizedBox.shrink();
+                          final controller = downloads;
+                          return AnimatedBuilder(
+                            animation: controller,
+                            builder: (context, _) {
+                              final task = controller.state;
+                              final isThisAyah =
+                                  task.startAyah == ayah.globalAyah &&
+                                  task.endAyah == ayah.globalAyah;
+                              return OutlinedButton.icon(
+                                onPressed: task.isRunning
+                                    ? (isThisAyah ? controller.cancel : null)
+                                    : () async {
+                                        final quran = context
+                                            .read<QuranCubit>();
+                                        final reciter =
+                                            AppConstants.findReciter(
+                                              quran.reciter,
+                                            );
+                                        await controller.downloadRange(
+                                          reciter: reciter,
+                                          startAyah: ayah.globalAyah,
+                                          endAyah: ayah.globalAyah,
+                                          label:
+                                              'الآية ${ayah.ayah} من سورة ${chapter.name}',
+                                        );
+                                        if (context.mounted) {
+                                          final result = controller.state;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                result.status ==
+                                                        OfflineDownloadStatus
+                                                            .completed
+                                                    ? 'تم حفظ صوت الآية دون إنترنت.'
+                                                    : result.error ?? 'تعذّر حفظ صوت الآية.',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                icon: Icon(
+                                  isThisAyah && task.isRunning
+                                      ? Icons.stop_circle_outlined
+                                      : Icons.download_for_offline_outlined,
+                                ),
+                                label: Text(
+                                  isThisAyah && task.isRunning
+                                      ? 'إيقاف التنزيل'
+                                      : 'حفظ صوت هذه الآية دون إنترنت',
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -296,8 +373,9 @@ class AyahActionSheet extends StatelessWidget {
                                 prev.isAyahBookmarked(ayah.globalAyah) !=
                                 curr.isAyahBookmarked(ayah.globalAyah),
                             builder: (context, state) {
-                              final isBookmarked =
-                                  state.isAyahBookmarked(ayah.globalAyah);
+                              final isBookmarked = state.isAyahBookmarked(
+                                ayah.globalAyah,
+                              );
                               return Expanded(
                                 child: _SecondaryActionButton(
                                   icon: isBookmarked
@@ -307,9 +385,13 @@ class AyahActionSheet extends StatelessWidget {
                                   badge: isBookmarked ? 'محفوظة' : null,
                                   onPressed: () async {
                                     final cubit = context.read<QuranCubit>();
-                                    await cubit.toggleAyahBookmark(ayah.globalAyah);
+                                    await cubit.toggleAyahBookmark(
+                                      ayah.globalAyah,
+                                    );
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             isBookmarked
@@ -379,17 +461,18 @@ class AyahActionSheet extends StatelessWidget {
                                         status == MemorizationStatus.memorized
                                             ? Icons.check_circle_rounded
                                             : status ==
-                                                    MemorizationStatus
-                                                        .needsRevision
-                                                ? Icons.replay_rounded
-                                                : Icons.school_outlined,
+                                                  MemorizationStatus
+                                                      .needsRevision
+                                            ? Icons.replay_rounded
+                                            : Icons.school_outlined,
                                         size: 18,
                                         color: statusColor,
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
@@ -398,7 +481,9 @@ class AyahActionSheet extends StatelessWidget {
                                                   style: TextStyle(
                                                     fontSize: 12.5,
                                                     fontWeight: FontWeight.w600,
-                                                    color: theme.colorScheme.onSurface
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurface
                                                         .withValues(alpha: 0.7),
                                                   ),
                                                 ),
@@ -408,17 +493,21 @@ class AyahActionSheet extends StatelessWidget {
                                                     fontSize: 12.5,
                                                     fontWeight: FontWeight.bold,
                                                     color: statusColor,
-                                                 ),
+                                                  ),
                                                 ),
                                               ],
                                             ),
-                                            if (status != MemorizationStatus.notStarted) ...[
+                                            if (status !=
+                                                MemorizationStatus
+                                                    .notStarted) ...[
                                               const SizedBox(height: 2),
                                               Text(
                                                 'آخر مراجعة: ${_formatTimeAgo(item.lastReviewedAt)} · القادمة: ${_formatNextReview(item.nextReviewAt)} · الأخطاء: ${item.mistakeCount}',
                                                 style: TextStyle(
                                                   fontSize: 10.5,
-                                                  color: theme.colorScheme.onSurface
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurface
                                                       .withValues(alpha: 0.55),
                                                 ),
                                               ),
@@ -489,8 +578,9 @@ class AyahActionSheet extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: OutlinedButton.icon(
-                                        onPressed: () => Navigator.of(context)
-                                            .pop('visual_recall_single'),
+                                        onPressed: () =>
+                                            Navigator.of(context)
+                                                .pop('visual_recall_single'),
                                         icon: const Icon(
                                           Icons.visibility_off_outlined,
                                           size: 16,
@@ -514,8 +604,9 @@ class AyahActionSheet extends StatelessWidget {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: OutlinedButton.icon(
-                                        onPressed: () => Navigator.of(context)
-                                            .pop('visual_recall_range'),
+                                        onPressed: () =>
+                                            Navigator.of(context)
+                                                .pop('visual_recall_range'),
                                         icon: const Icon(
                                           Icons.linear_scale_rounded,
                                           size: 16,
@@ -577,10 +668,7 @@ class AyahActionSheet extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Text(
                   'تحديد حالة الحفظ للآية',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               const Divider(),
@@ -705,8 +793,10 @@ class _SecondaryActionButton extends StatelessWidget {
                 if (badge != null) ...[
                   const SizedBox(width: 4),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),

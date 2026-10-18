@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 
 import '../core/services/audio_service.dart';
 import '../core/services/local_notification_service.dart';
 import '../core/services/local_storage_service.dart';
+import '../core/services/offline_audio_download_controller.dart';
+import '../core/services/quran_audio_cache_service.dart';
 import '../core/theme/app_theme.dart';
 import '../features/adhkar/data/repositories/adhkar_repository.dart';
 import '../features/adhkar/presentation/cubit/adhkar_cubit.dart';
@@ -37,6 +40,7 @@ class MishkatApp extends StatelessWidget {
     required this.settingsCubit,
     required this.khatmaCubit,
     this.speechService,
+    this.offlineDownloads,
   });
 
   final LocalStorageService storage;
@@ -48,19 +52,28 @@ class MishkatApp extends StatelessWidget {
   final SettingsCubit settingsCubit;
   final KhatmaCubit khatmaCubit;
   final SpeechRecognitionService? speechService;
+  final OfflineAudioDownloadController? offlineDownloads;
 
   @override
   Widget build(BuildContext context) {
     final settings = settingsCubit.state.settings;
     final qiblaCubit = QiblaCubit()
       ..setLocation(settings.latitude, settings.longitude);
+    final downloadController =
+        offlineDownloads ??
+        OfflineAudioDownloadController(QuranAudioCacheService());
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<QuranRepository>.value(value: quranRepository),
         RepositoryProvider<AdhkarRepository>.value(value: adhkarRepository),
         RepositoryProvider<LibraryRepository>.value(value: libraryRepository),
+        ChangeNotifierProvider<OfflineAudioDownloadController>.value(
+          value: downloadController,
+        ),
         if (speechService != null)
-          RepositoryProvider<SpeechRecognitionService>.value(value: speechService!),
+          RepositoryProvider<SpeechRecognitionService>.value(
+            value: speechService!,
+          ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -77,7 +90,8 @@ class MishkatApp extends StatelessWidget {
             )..load(),
           ),
           BlocProvider(
-            create: (ctx) => AdhkarCubit(ctx.read<AdhkarRepository>(), storage)..load(),
+            create: (ctx) =>
+                AdhkarCubit(ctx.read<AdhkarRepository>(), storage)..load(),
           ),
           BlocProvider.value(value: qiblaCubit),
           BlocProvider(create: (_) => TasbihCubit(storage)),
@@ -89,50 +103,51 @@ class MishkatApp extends StatelessWidget {
             )..load(),
           ),
           BlocProvider(
-            create: (ctx) => LibraryCubit(ctx.read<LibraryRepository>(), storage)..load(),
+            create: (ctx) =>
+                LibraryCubit(ctx.read<LibraryRepository>(), storage)..load(),
           ),
         ],
         child: BlocBuilder<SettingsCubit, SettingsState>(
           builder: (context, state) => MaterialApp(
-          title: 'مشكاة',
-          debugShowCheckedModeBanner: false,
-          locale: const Locale('ar'),
-          supportedLocales: const [Locale('ar')],
-          localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          theme: AppTheme.light(state.settings.uiFontScale),
-          darkTheme: AppTheme.dark(state.settings.uiFontScale),
-          themeMode: state.settings.themeMode,
-          builder: (context, child) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: MediaQuery(
-              data: MediaQuery.of(context)
-                  .copyWith(textScaler: TextScaler.noScaling),
-              child: child!,
-            ),
-          ),
-          home: MultiBlocListener(
-            listeners: [
-              BlocListener<SettingsCubit, SettingsState>(
-                listenWhen: (previous, current) =>
-                    previous.settings != current.settings,
-                listener: (context, value) {
-                  final settings = value.settings;
-                  context.read<HomeCubit>().updateSettings(settings);
-                  context.read<QiblaCubit>().setLocation(
-                    settings.latitude,
-                    settings.longitude,
-                  );
-                  context.read<QuranCubit>()
-                    ..updateReciter(settings.reciter)
-                    ..setFontSize(settings.quranFont);
-                },
+            title: 'مشكاة',
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('ar'),
+            supportedLocales: const [Locale('ar')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            theme: AppTheme.light(state.settings.uiFontScale),
+            darkTheme: AppTheme.dark(state.settings.uiFontScale),
+            themeMode: state.settings.themeMode,
+            builder: (context, child) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.noScaling),
+                child: child!,
               ),
-            ],
-            child: const AppShell(),
+            ),
+            home: MultiBlocListener(
+              listeners: [
+                BlocListener<SettingsCubit, SettingsState>(
+                  listenWhen: (previous, current) =>
+                      previous.settings != current.settings,
+                  listener: (context, value) {
+                    final settings = value.settings;
+                    context.read<HomeCubit>().updateSettings(settings);
+                    context.read<QiblaCubit>().setLocation(
+                      settings.latitude,
+                      settings.longitude,
+                    );
+                    context.read<QuranCubit>()
+                      ..updateReciter(settings.reciter)
+                      ..setFontSize(settings.quranFont);
+                  },
+                ),
+              ],
+              child: const AppShell(),
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

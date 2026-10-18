@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/services/offline_audio_download_controller.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/mishkat_widgets.dart';
 import '../../../prayer_times/data/services/prayer_calculator.dart';
+import '../../../quran/presentation/pages/offline_audio_downloads_page.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
 import '../../data/models/app_settings.dart';
@@ -537,6 +539,19 @@ class _DataSettings extends StatelessWidget {
             '604 صفحات مصحف وبيانات القرآن والأذكار مضمنة في التطبيق',
           ),
         ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.download_for_offline_outlined),
+          title: const Text('إدارة التلاوات المحفوظة'),
+          subtitle: const Text('تنزيل سورة أو حذفها وتشغيلها بلا شبكة'),
+          trailing: const Icon(Icons.chevron_left_rounded),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => const OfflineAudioDownloadsPage(),
+            ),
+          ),
+        ),
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.error,
@@ -547,7 +562,7 @@ class _DataSettings extends StatelessWidget {
               builder: (context) => AlertDialog(
                 title: const Text('مسح جميع البيانات؟'),
                 content: const Text(
-                  'سيُحذف موضع القراءة والعلامات والختمات وتقدّم الأذكار والإعدادات من هذا الجهاز.',
+                  'سيُحذف موضع القراءة والعلامات والختمات وتقدّم الأذكار والإعدادات وكل التلاوات المحفوظة من هذا الجهاز.',
                 ),
                 actions: [
                   TextButton(
@@ -562,9 +577,14 @@ class _DataSettings extends StatelessWidget {
               ),
             );
             if (confirmed == true && context.mounted) {
-              await context.read<SettingsCubit>().clearAllData();
+              final settingsCubit = context.read<SettingsCubit>();
+              final downloads = context.read<OfflineAudioDownloadController>();
+              await settingsCubit.clearAllData();
+              await downloads.cache.clearCache();
               if (context.mounted) {
-                context.showMessage('تم مسح البيانات المحلية.');
+                context.showMessage(
+                  'تم مسح البيانات المحلية والتلاوات المحفوظة.',
+                );
               }
             }
           },

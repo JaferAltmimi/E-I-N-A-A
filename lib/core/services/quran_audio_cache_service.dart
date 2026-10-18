@@ -16,6 +16,7 @@ class QuranAudioCacheEntry extends Equatable {
     required this.fileSizeBytes,
     required this.cachedAt,
     required this.lastAccessedAt,
+    this.pinned = false,
   });
 
   final String reciterId;
@@ -24,11 +25,15 @@ class QuranAudioCacheEntry extends Equatable {
   final DateTime cachedAt;
   final DateTime lastAccessedAt;
 
+  /// User downloads are pinned so normal playback caching never evicts them.
+  final bool pinned;
+
   String get key => '${reciterId}_$globalAyah';
 
   QuranAudioCacheEntry copyWith({
     int? fileSizeBytes,
     DateTime? lastAccessedAt,
+    bool? pinned,
   }) {
     return QuranAudioCacheEntry(
       reciterId: reciterId,
@@ -36,16 +41,18 @@ class QuranAudioCacheEntry extends Equatable {
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
       cachedAt: cachedAt,
       lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
+      pinned: pinned ?? this.pinned,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'reciterId': reciterId,
-        'globalAyah': globalAyah,
-        'fileSizeBytes': fileSizeBytes,
-        'cachedAt': cachedAt.toIso8601String(),
-        'lastAccessedAt': lastAccessedAt.toIso8601String(),
-      };
+    'reciterId': reciterId,
+    'globalAyah': globalAyah,
+    'fileSizeBytes': fileSizeBytes,
+    'cachedAt': cachedAt.toIso8601String(),
+    'lastAccessedAt': lastAccessedAt.toIso8601String(),
+    'pinned': pinned,
+  };
 
   factory QuranAudioCacheEntry.fromJson(Map<String, dynamic> json) {
     return QuranAudioCacheEntry(
@@ -54,17 +61,19 @@ class QuranAudioCacheEntry extends Equatable {
       fileSizeBytes: (json['fileSizeBytes'] as num).toInt(),
       cachedAt: DateTime.parse(json['cachedAt'] as String),
       lastAccessedAt: DateTime.parse(json['lastAccessedAt'] as String),
+      pinned: json['pinned'] as bool? ?? false,
     );
   }
 
   @override
   List<Object?> get props => [
-        reciterId,
-        globalAyah,
-        fileSizeBytes,
-        cachedAt,
-        lastAccessedAt,
-      ];
+    reciterId,
+    globalAyah,
+    fileSizeBytes,
+    cachedAt,
+    lastAccessedAt,
+    pinned,
+  ];
 }
 
 /// User configurable settings for offline Quran audio caching.
@@ -81,11 +90,7 @@ class AudioCacheSettings extends Equatable {
 
   int get maxSizeBytes => maxSizeMb * 1024 * 1024;
 
-  AudioCacheSettings copyWith({
-    bool? enabled,
-    bool? wifiOnly,
-    int? maxSizeMb,
-  }) {
+  AudioCacheSettings copyWith({bool? enabled, bool? wifiOnly, int? maxSizeMb}) {
     return AudioCacheSettings(
       enabled: enabled ?? this.enabled,
       wifiOnly: wifiOnly ?? this.wifiOnly,
@@ -94,10 +99,10 @@ class AudioCacheSettings extends Equatable {
   }
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'wifiOnly': wifiOnly,
-        'maxSizeMb': maxSizeMb,
-      };
+    'enabled': enabled,
+    'wifiOnly': wifiOnly,
+    'maxSizeMb': maxSizeMb,
+  };
 
   factory AudioCacheSettings.fromJson(Map<String, dynamic> json) {
     return AudioCacheSettings(
@@ -118,10 +123,10 @@ class QuranAudioCacheService {
     HttpClient? httpClient,
     Connectivity? connectivity,
     int? maxCacheSizeBytes,
-  })  : _customBaseDir = baseDirectory,
-        _client = httpClient ?? HttpClient(),
-        _connectivity = connectivity ?? Connectivity(),
-        maxCacheSizeBytes = maxCacheSizeBytes ?? defaultMaxCacheSizeBytes;
+  }) : _customBaseDir = baseDirectory,
+       _client = httpClient ?? HttpClient(),
+       _connectivity = connectivity ?? Connectivity(),
+       maxCacheSizeBytes = maxCacheSizeBytes ?? defaultMaxCacheSizeBytes;
 
   /// Default high watermark: 150 MiB (157,286,400 bytes).
   static const int defaultMaxCacheSizeBytes = 150 * 1024 * 1024;
@@ -140,6 +145,8 @@ class QuranAudioCacheService {
 
   final Map<String, QuranAudioCacheEntry> _entries = {};
   final Map<String, Future<File?>> _activeDownloads = {};
+  final StreamController<int> _changes = StreamController<int>.broadcast();
+  int _revision = 0;
   bool _isInitialized = false;
 
   /// Total size of all cached audio files in bytes.
@@ -147,8 +154,17 @@ class QuranAudioCacheService {
       _entries.values.fold(0, (sum, entry) => sum + entry.fileSizeBytes);
 
   /// Human-readable cache size formatted in megabytes.
-  double get currentCacheSizeMb =>
-      currentCacheSizeBytes / (1024 * 1024);
+  double get currentCacheSizeMb => currentCacheSizeBytes / (1024 * 1024);
+
+  List<QuranAudioCacheEntry> get entries =>
+      List<QuranAudioCacheEntry>.unmodifiable(_entries.values);
+
+  Stream<int> get changes => _changes.stream;
+
+  void _notifyChanged() {
+    _revision++;
+    if (!_changes.isClosed) _changes.add(_revision);
+  }
 
   /// Initializes directories and loads existing metadata.
   Future<void> init() async {
@@ -218,7 +234,7 @@ class QuranAudioCacheService {
           lastAccessedAt: DateTime.now(),
         );
       }
-      unawaited(_saveMetadata());
+      await _saveMetadata();
     }
 
     return file;
@@ -232,6 +248,7 @@ class QuranAudioCacheService {
     required String reciter,
     required int globalAyah,
     Set<int> pinnedAyahs = const {},
+    bool pin = false,
   }) async {
     await init();
     final key = '${reciter}_$globalAyah';
@@ -253,6 +270,7 @@ class QuranAudioCacheService {
       reciter: reciter,
       globalAyah: globalAyah,
       pinnedAyahs: pinnedAyahs,
+      pin: pin,
     );
 
     _activeDownloads[key] = downloadFuture;
@@ -269,9 +287,12 @@ class QuranAudioCacheService {
     required String reciter,
     required int globalAyah,
     required Set<int> pinnedAyahs,
+    required bool pin,
   }) async {
     final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final tmpFile = File('${_tmpDir!.path}/${reciter}_${globalAyah}_$timestamp.tmp');
+    final tmpFile = File(
+      '${_tmpDir!.path}/${reciter}_${globalAyah}_$timestamp.tmp',
+    );
     final finalFile = _getFinalFile(reciter, globalAyah);
 
     try {
@@ -314,9 +335,11 @@ class QuranAudioCacheService {
         fileSizeBytes: size,
         cachedAt: now,
         lastAccessedAt: now,
+        pinned: pin,
       );
 
       await _saveMetadata();
+      _notifyChanged();
 
       // Trigger LRU eviction if over limit
       if (currentCacheSizeBytes > maxCacheSizeBytes) {
@@ -343,8 +366,9 @@ class QuranAudioCacheService {
   }) async {
     await init();
     final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final tmpFile =
-        File('${_tmpDir!.path}/${reciter}_${globalAyah}_$timestamp.tmp');
+    final tmpFile = File(
+      '${_tmpDir!.path}/${reciter}_${globalAyah}_$timestamp.tmp',
+    );
     final finalFile = _getFinalFile(reciter, globalAyah);
 
     try {
@@ -371,9 +395,11 @@ class QuranAudioCacheService {
         fileSizeBytes: size,
         cachedAt: now,
         lastAccessedAt: now,
+        pinned: pinnedAyahs.contains(globalAyah),
       );
 
       await _saveMetadata();
+      _notifyChanged();
 
       if (currentCacheSizeBytes > maxCacheSizeBytes) {
         await evictLRU(pinnedAyahs: pinnedAyahs);
@@ -408,7 +434,7 @@ class QuranAudioCacheService {
       if (currentCacheSizeBytes <= targetSize) break;
 
       // Pinned protection: skip currently playing or active session Ayahs
-      if (pinnedAyahs.contains(entry.globalAyah)) {
+      if (entry.pinned || pinnedAyahs.contains(entry.globalAyah)) {
         continue;
       }
 
@@ -424,7 +450,86 @@ class QuranAudioCacheService {
     }
 
     await _saveMetadata();
+    if (evictedBytes > 0) _notifyChanged();
     return evictedBytes;
+  }
+
+  /// Pins an existing item, or downloads it as a durable user-owned download.
+  Future<File?> downloadAyah({
+    required String reciter,
+    required int globalAyah,
+  }) async {
+    await init();
+    final key = '${reciter}_$globalAyah';
+    final existing = await getCachedFile(
+      reciter: reciter,
+      globalAyah: globalAyah,
+    );
+    if (existing != null) {
+      final entry = _entries[key];
+      if (entry != null && !entry.pinned) {
+        _entries[key] = entry.copyWith(pinned: true);
+        await _saveMetadata();
+        _notifyChanged();
+      }
+      return existing;
+    }
+    return cacheAyah(
+      reciter: reciter,
+      globalAyah: globalAyah,
+      pinnedAyahs: {globalAyah},
+      pin: true,
+    );
+  }
+
+  Future<int> cachedCount({
+    required String reciter,
+    required int startGlobalAyah,
+    required int endGlobalAyah,
+    bool pinnedOnly = true,
+  }) async {
+    await init();
+    var count = 0;
+    for (var ayah = startGlobalAyah; ayah <= endGlobalAyah; ayah++) {
+      final entry = _entries['${reciter}_$ayah'];
+      if (entry != null && (!pinnedOnly || entry.pinned)) count++;
+    }
+    return count;
+  }
+
+  int cachedCountNow({
+    required String reciter,
+    required int startGlobalAyah,
+    required int endGlobalAyah,
+    bool pinnedOnly = true,
+  }) {
+    var count = 0;
+    for (var ayah = startGlobalAyah; ayah <= endGlobalAyah; ayah++) {
+      final entry = _entries['${reciter}_$ayah'];
+      if (entry != null && (!pinnedOnly || entry.pinned)) count++;
+    }
+    return count;
+  }
+
+  /// Removes only explicit downloads in a range; opportunistic cache is left intact.
+  Future<void> removeDownloadRange({
+    required String reciter,
+    required int startGlobalAyah,
+    required int endGlobalAyah,
+  }) async {
+    await init();
+    for (var ayah = startGlobalAyah; ayah <= endGlobalAyah; ayah++) {
+      final key = '${reciter}_$ayah';
+      final entry = _entries[key];
+      if (entry == null || !entry.pinned) continue;
+      final file = _getFinalFile(reciter, ayah);
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+      _entries.remove(key);
+    }
+    await _saveMetadata();
+    _notifyChanged();
   }
 
   /// Manually clears all cached audio files and resets metadata.
@@ -447,6 +552,7 @@ class QuranAudioCacheService {
     await _cacheDir!.create(recursive: true);
     await _tmpDir!.create(recursive: true);
     await _saveMetadata();
+    _notifyChanged();
   }
 
   /// Validates that [file] is a non-empty, authentic audio stream.
@@ -495,10 +601,12 @@ class QuranAudioCacheService {
   Future<bool> isNetworkAvailable() async {
     try {
       final results = await _connectivity.checkConnectivity();
-      return results.any((r) =>
-          r == ConnectivityResult.wifi ||
-          r == ConnectivityResult.mobile ||
-          r == ConnectivityResult.ethernet);
+      return results.any(
+        (r) =>
+            r == ConnectivityResult.wifi ||
+            r == ConnectivityResult.mobile ||
+            r == ConnectivityResult.ethernet,
+      );
     } catch (_) {
       return false;
     }
@@ -511,6 +619,7 @@ class QuranAudioCacheService {
   void _removeEntry(String key) {
     if (_entries.remove(key) != null) {
       unawaited(_saveMetadata());
+      _notifyChanged();
     }
   }
 
@@ -555,7 +664,9 @@ class QuranAudioCacheService {
         for (final entry in _entries.entries) entry.key: entry.value.toJson(),
       };
       final raw = jsonEncode(data);
-      final tmp = File('${_metadataFile!.path}.${DateTime.now().microsecondsSinceEpoch}.tmp');
+      final tmp = File(
+        '${_metadataFile!.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
+      );
       await tmp.writeAsString(raw, flush: true);
       if (await _metadataFile!.exists()) {
         await _metadataFile!.delete();

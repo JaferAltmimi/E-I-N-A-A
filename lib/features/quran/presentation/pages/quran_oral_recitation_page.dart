@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/audio_service.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/mishkat_widgets.dart';
 import '../../data/models/oral_recitation_models.dart';
 import '../../data/repositories/quran_repository.dart';
 import '../cubit/quran_memorization_cubit.dart';
+import '../cubit/quran_cubit.dart';
 import '../cubit/quran_oral_recitation_cubit.dart';
 import '../cubit/quran_oral_recitation_state.dart';
 import '../services/speech_recognition_service.dart';
@@ -47,6 +51,7 @@ class QuranOralRecitationPage extends StatelessWidget {
       create: (ctx) {
         final repo = quranRepository ?? ctx.read<QuranRepository>();
         SpeechRecognitionService resolvedSpeech;
+        var ownsSpeechService = false;
         if (speechService != null) {
           resolvedSpeech = speechService!;
         } else {
@@ -54,12 +59,19 @@ class QuranOralRecitationPage extends StatelessWidget {
             resolvedSpeech = ctx.read<SpeechRecognitionService>();
           } catch (_) {
             resolvedSpeech = NativeSpeechRecognitionService();
+            ownsSpeechService = true;
           }
         }
+        QuranAudioService? audioService;
+        try {
+          audioService = ctx.read<QuranCubit>().audioService;
+        } catch (_) {}
         final cubit = QuranOralRecitationCubit(
           speechService: resolvedSpeech,
           quranRepository: repo,
           memorizationCubit: ctx.read<QuranMemorizationCubit>(),
+          audioService: audioService,
+          ownsSpeechService: ownsSpeechService,
         );
         cubit.prepareSession(
           surahNumber: surahNumber,
@@ -103,6 +115,15 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       context.read<QuranOralRecitationCubit>().checkAndRefreshPermission();
+    } else if ((state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.paused ||
+            state == AppLifecycleState.detached ||
+            state == AppLifecycleState.hidden) &&
+        mounted) {
+      final cubit = context.read<QuranOralRecitationCubit>();
+      if (cubit.state.lifecycle.isListening) {
+        unawaited(cubit.pauseRecitation());
+      }
     }
   }
 
@@ -111,8 +132,11 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
     final colors = context.mishkat;
 
     return BlocConsumer<QuranOralRecitationCubit, QuranOralRecitationState>(
+      listenWhen: (previous, current) =>
+          previous.errorMessage != current.errorMessage &&
+          current.errorMessage != null,
       listener: (context, state) {
-        if (state.errorMessage != null && state.lifecycle.isError) {
+        if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.errorMessage!),
@@ -789,7 +813,7 @@ class _QuranOralRecitationViewState extends State<_QuranOralRecitationView>
           ),
           const SizedBox(height: 8),
           Text(
-            'خدمة التعرف على الكلام غير متاحة على هذا الجهاز حاليًا.',
+            state.errorMessage ?? 'التعرف الصوتي المحلي غير جاهز. نزّل حزمة اللغة العربية من إعدادات الجهاز ثم أعد المحاولة.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,

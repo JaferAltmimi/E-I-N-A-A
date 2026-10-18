@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/offline_audio_download_controller.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/mishkat_widgets.dart';
@@ -450,6 +452,8 @@ class _ActivePlanCard extends StatelessWidget {
           isFullWidth: true,
         ),
         const SizedBox(height: MishkatSpacing.sm),
+        _KhatmaOfflineAction(plan: plan),
+        const SizedBox(height: MishkatSpacing.sm),
         MishkatSecondaryAction(
           onPressed: plan.status != KhatmaStatus.active
               ? null
@@ -484,6 +488,63 @@ class _ActivePlanCard extends StatelessWidget {
         MaterialPageRoute<void>(builder: (_) => const QuranReaderPage()),
       );
     }
+  }
+}
+
+class _KhatmaOfflineAction extends StatelessWidget {
+  const _KhatmaOfflineAction({required this.plan});
+  final KhatmaPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    OfflineAudioDownloadController? downloads;
+    try {
+      downloads = context.read<OfflineAudioDownloadController>();
+    } catch (_) {}
+    if (downloads == null) return const SizedBox.shrink();
+    final controller = downloads;
+    final quran = context.read<QuranCubit>();
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final state = controller.state;
+        final isThisTask = state.label == 'ورد ${plan.name} اليوم';
+        final running = state.isRunning;
+        return MishkatSecondaryAction(
+          onPressed: plan.status != KhatmaStatus.active || running
+              ? (isThisTask && running ? controller.cancel : null)
+              : () async {
+                  final data = quran.state.data;
+                  if (data == null) return;
+                  final reciter = AppConstants.findReciter(quran.reciter);
+                  await controller.downloadPages(
+                    reciter: reciter,
+                    data: data,
+                    startPage: plan.nextPage,
+                    endPage: plan.todayEnd,
+                    label: 'ورد ${plan.name} اليوم',
+                  );
+                  if (context.mounted) {
+                    final result = controller.state;
+                    context.showMessage(
+                      result.status == OfflineDownloadStatus.completed
+                          ? 'تم حفظ ورد اليوم بالصوت وسيعمل دون إنترنت.'
+                          : result.error ?? 'توقف التنزيل، حاول مرة أخرى.',
+                    );
+                  }
+                },
+          icon: Icon(
+            isThisTask && running
+                ? Icons.stop_circle_outlined
+                : Icons.download_for_offline_outlined,
+          ),
+          label: isThisTask && running
+              ? 'إيقاف التنزيل ${(state.progress * 100).round()}%'
+              : 'حفظ صوت ورد اليوم دون إنترنت',
+          isFullWidth: true,
+        );
+      },
+    );
   }
 }
 

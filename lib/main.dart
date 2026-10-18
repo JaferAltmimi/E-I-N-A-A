@@ -7,6 +7,8 @@ import 'app/app_bloc_observer.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/local_notification_service.dart';
 import 'core/services/local_storage_service.dart';
+import 'core/services/offline_audio_download_controller.dart';
+import 'core/services/quran_audio_cache_service.dart';
 import 'core/services/location_service.dart';
 import 'features/adhkar/data/repositories/adhkar_repository.dart';
 import 'features/khatma/presentation/cubit/khatma_cubit.dart';
@@ -35,12 +37,16 @@ Future<void> main() async {
     notifications: notifications,
   );
   await settingsCubit.load();
+  final audioCache = QuranAudioCacheService();
+  await audioCache.init();
+  final offlineDownloads = OfflineAudioDownloadController(audioCache);
 
   runApp(
     MishkatApp(
       storage: storage,
       notifications: notifications,
-      audioService: QuranAudioService(),
+      audioService: QuranAudioService(cacheService: audioCache),
+      offlineDownloads: offlineDownloads,
       quranRepository: QuranRepository(),
       adhkarRepository: AdhkarRepository(),
       libraryRepository: LibraryRepository(),

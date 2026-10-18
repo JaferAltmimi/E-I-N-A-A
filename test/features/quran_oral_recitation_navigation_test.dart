@@ -200,10 +200,17 @@ void main() {
       await tester.tap(memorizationButton);
       await tester.pumpAndSettle();
 
-      final oralInfoButton = find.text('ميزة التسميع الشفهي والاستماع الذكي');
+      final oralInfoButton = find.text('التسميع الذكي');
       expect(oralInfoButton, findsOneWidget);
       await tester.ensureVisible(oralInfoButton);
       await tester.tap(oralInfoButton);
+      await tester.pumpAndSettle();
+
+      // No plan exists in this scenario, so choose the default free range first.
+      expect(find.text('تسميع حر'), findsOneWidget);
+      final continueButton = find.text('متابعة إلى التسميع');
+      expect(continueButton, findsOneWidget);
+      await tester.tap(continueButton);
       await tester.pumpAndSettle();
 
       expect(
@@ -223,7 +230,7 @@ void main() {
       // Verify Oral Recitation page is rendered without any ProviderNotFoundException
       expect(find.byType(QuranOralRecitationPage), findsOneWidget);
       expect(find.text('التسميع الشفهي الذكي'), findsOneWidget);
-      expect(find.text('ٱلْفَاتِحَةِ · الآيات 1 - 7'), findsOneWidget);
+      expect(find.text('ٱلْفَاتِحَةِ · الآيات 1 - 5'), findsOneWidget);
       expect(find.text('جاهز للتسميع'), findsOneWidget);
       expect(find.text('بدء التسميع'), findsOneWidget);
 
@@ -232,7 +239,7 @@ void main() {
       final cubit = innerContext.read<QuranOralRecitationCubit>();
       expect(cubit.quranRepository, same(globalQuranRepo));
       expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
-      expect(cubit.state.targetWords.length, 29);
+      expect(cubit.state.targetWords.length, 17);
       expect(cubit.state.errorMessage, isNull);
 
       // Tap back / leave page to verify clean disposal

@@ -70,18 +70,20 @@ abstract class SpeechRecognitionService {
 /// Production implementation of [SpeechRecognitionService] backed by native platform ASR ([SpeechToText]).
 class NativeSpeechRecognitionService implements SpeechRecognitionService {
   NativeSpeechRecognitionService({SpeechToText? speechToText})
-      : _stt = speechToText ?? SpeechToText();
+    : _stt = speechToText ?? SpeechToText();
 
   final SpeechToText _stt;
 
-  final _resultsController = StreamController<SpeechRecognitionResultData>.broadcast();
+  final _resultsController =
+      StreamController<SpeechRecognitionResultData>.broadcast();
   final _statusController = StreamController<String>.broadcast();
   final _errorController = StreamController<String>.broadcast();
 
   bool _isInitialized = false;
 
   @override
-  Stream<SpeechRecognitionResultData> get resultsStream => _resultsController.stream;
+  Stream<SpeechRecognitionResultData> get resultsStream =>
+      _resultsController.stream;
 
   @override
   Stream<String> get statusStream => _statusController.stream;
@@ -163,13 +165,19 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
     var targetLocale = localeId;
     try {
       final locales = await _stt.locales();
-      final arabicLocales = locales.where((l) => l.localeId.startsWith('ar')).toList();
+      final arabicLocales = locales
+          .where((l) => l.localeId.toLowerCase().startsWith('ar'))
+          .toList();
       if (arabicLocales.isNotEmpty) {
-        final exact = arabicLocales.firstWhere(
-          (l) => l.localeId == localeId || l.localeId.startsWith(localeId.split('_').first),
-          orElse: () => arabicLocales.first,
+        final normalizedRequested = localeId.toLowerCase().replaceAll('-', '_');
+        final exactMatches = arabicLocales.where(
+          (locale) =>
+              locale.localeId.toLowerCase().replaceAll('-', '_') ==
+              normalizedRequested,
         );
-        targetLocale = exact.localeId;
+        targetLocale = exactMatches.isNotEmpty
+            ? exactMatches.first.localeId
+            : arabicLocales.first.localeId;
       }
     } catch (_) {}
 
@@ -180,6 +188,9 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
           listenMode: ListenMode.dictation,
           partialResults: true,
           cancelOnError: false,
+          // Prefer the operating-system language pack so Tasmee keeps working
+          // in airplane mode and microphone audio is not sent to a server.
+          onDevice: true,
           listenFor: const Duration(minutes: 5),
           pauseFor: const Duration(seconds: 4),
           localeId: targetLocale,
@@ -187,7 +198,9 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
       );
       return _stt.isListening;
     } catch (e) {
-      _errorController.add('تعذّر بدء الاستماع عبر الميكروفون: $e');
+      _errorController.add(
+        'تعذّر بدء التسميع المحلي. تأكد من تنزيل حزمة التعرف على العربية من إعدادات الجهاز: $e',
+      );
       return false;
     }
   }
@@ -210,7 +223,9 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
     if (_resultsController.isClosed) return;
 
     if (kDebugMode) {
-      debugPrint('[Q14_STT_CALLBACK] isFinal=${result.finalResult} conf=${result.confidence} words="${result.recognizedWords}"');
+      debugPrint(
+        '[Q14_STT_CALLBACK] isFinal=${result.finalResult} conf=${result.confidence} words="${result.recognizedWords}"',
+      );
     }
 
     final alternates = result.alternates.map((a) => a.recognizedWords).toList();
@@ -235,7 +250,19 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
 
   void _onError(SpeechRecognitionError error) {
     if (!_errorController.isClosed) {
-      _errorController.add(error.errorMsg);
+      final message = switch (error.errorMsg) {
+        'error_no_match' =>
+          'لم أتمكن من تمييز الكلام بوضوح. اقترب من الميكروفون وحاول مجددًا.',
+        'error_speech_timeout' =>
+          'لم يُسمع صوت لفترة. اضغط متابعة عندما تكون مستعدًا.',
+        'error_audio' =>
+          'تعذّر الوصول إلى الميكروفون. تحقق من عدم استخدامه في تطبيق آخر.',
+        'error_network' || 'error_network_timeout' => 'التعرف المحلي غير جاهز. نزّل حزمة اللغة العربية من إعدادات الجهاز ثم حاول مجددًا.',
+        'error_permission' || 'error_permission_denied' =>
+          'إذن الميكروفون أو التعرف على الكلام غير متاح.',
+        _ => 'توقف محرك التعرف الصوتي. حاول بدء التسميع مرة أخرى.',
+      };
+      _errorController.add(message);
     }
   }
 
@@ -253,8 +280,8 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
   MockSpeechRecognitionService({
     bool initialAvailable = true,
     bool initialPermission = true,
-  })  : _isAvailable = initialAvailable,
-        _hasPermission = initialPermission;
+  }) : _isAvailable = initialAvailable,
+       _hasPermission = initialPermission;
 
   bool _isAvailable;
   bool _hasPermission;
@@ -267,7 +294,8 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
   int openAppSettingsCount = 0;
   int initializeCount = 0;
 
-  final _resultsController = StreamController<SpeechRecognitionResultData>.broadcast();
+  final _resultsController =
+      StreamController<SpeechRecognitionResultData>.broadcast();
   final _statusController = StreamController<String>.broadcast();
   final _errorController = StreamController<String>.broadcast();
 
@@ -276,7 +304,8 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
   void setPermanentlyDenied(bool value) => _isPermanentlyDenied = value;
 
   @override
-  Stream<SpeechRecognitionResultData> get resultsStream => _resultsController.stream;
+  Stream<SpeechRecognitionResultData> get resultsStream =>
+      _resultsController.stream;
 
   @override
   Stream<String> get statusStream => _statusController.stream;
@@ -339,7 +368,11 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
   }
 
   /// Injects simulated speech transcripts during tests.
-  void emitTranscript(String words, {bool isFinal = false, double confidence = 1.0}) {
+  void emitTranscript(
+    String words, {
+    bool isFinal = false,
+    double confidence = 1.0,
+  }) {
     if (!_resultsController.isClosed) {
       _resultsController.add(
         SpeechRecognitionResultData(

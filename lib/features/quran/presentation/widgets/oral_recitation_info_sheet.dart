@@ -62,154 +62,179 @@ class OralRecitationInfoSheet extends StatelessWidget {
           MishkatSpacing.lg,
           MishkatSpacing.lg,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.textSecondary.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: MishkatSpacing.lg),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: colors.primarySoft,
-                    borderRadius: BorderRadius.circular(MishkatRadius.md),
-                  ),
-                  child: Icon(
-                    Icons.record_voice_over_rounded,
-                    color: colors.primary,
-                    size: 24,
+                    color: colors.textSecondary.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: MishkatSpacing.base),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'التسميع الشفهي الذكي',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'اقرأ من حفظك، وسيتابع التطبيق تلاوتك آيةً آية.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: colors.textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: MishkatSpacing.base),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: colors.surfaceVariant,
-                borderRadius: MishkatRadius.brMd,
               ),
-              child: Row(
+              const SizedBox(height: MishkatSpacing.lg),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.visibility_off_outlined,
-                    color: colors.primary,
-                    size: 20,
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: colors.primarySoft,
+                      borderRadius: BorderRadius.circular(MishkatRadius.md),
+                    ),
+                    child: Icon(
+                      Icons.record_voice_over_rounded,
+                      color: colors.primary,
+                      size: 24,
+                    ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: MishkatSpacing.base),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'التسميع الشفهي الذكي',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'اقرأ من حفظك، وسيتابع التطبيق تلاوتك آيةً آية.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: colors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: MishkatSpacing.base),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.surfaceVariant,
+                  borderRadius: MishkatRadius.brMd,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.visibility_off_outlined,
+                      color: colors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'تبقى الآيات مخفية أثناء القراءة، ثم تظهر بعد اكتمال كل آية مع تمييز مواضع الخطأ.',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 12.5,
+                          height: 1.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 15,
+                    color: colors.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'تبقى الآيات مخفية أثناء القراءة، ثم تظهر بعد اكتمال كل آية مع تمييز مواضع الخطأ.',
+                      'يُستخدم الميكروفون أثناء الجلسة ولا يحتفظ التطبيق بتسجيلك.',
                       style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 12.5,
-                        height: 1.5,
-                        fontWeight: FontWeight.w600,
+                        color: colors.textSecondary,
+                        fontSize: 11,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.lock_outline_rounded,
-                  size: 15,
-                  color: colors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'يُستخدم الميكروفون أثناء الجلسة ولا يحتفظ التطبيق بتسجيلك.',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 11),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  Icon(
+                    Icons.offline_pin_outlined,
+                    size: 15,
+                    color: colors.textSecondary,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: MishkatSpacing.base),
-            MishkatPrimaryAction(
-              onPressed: () {
-                final navigator = Navigator.of(context);
-                final quranRepo = context.read<QuranRepository>();
-                SpeechRecognitionService? speechService;
-                try {
-                  speechService = context.read<SpeechRecognitionService>();
-                } catch (_) {}
-                navigator.pop();
-                navigator.push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => QuranOralRecitationPage(
-                      surahNumber: surahNumber,
-                      startGlobalAyah: startGlobalAyah,
-                      endGlobalAyah: endGlobalAyah,
-                      planId: planId,
-                      quranRepository: quranRepo,
-                      speechService: speechService,
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'يعمل دون إنترنت بعد تنزيل حزمة التعرف على العربية من إعدادات الجهاز.',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                );
-              },
-              label: 'بدء التسميع الشفهي الآن',
-              icon: const Icon(Icons.mic_rounded),
-              isFullWidth: true,
-            ),
-            const SizedBox(height: 8),
-            MishkatSecondaryAction(
-              onPressed: () {
-                final navigator = Navigator.of(context);
-                navigator.pop();
-                navigator.push(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        const QuranReaderPage(startRangeSelection: true),
-                  ),
-                );
-              },
-              label: 'التسميع والاستحضار البصري في المصحف',
-              icon: const Icon(Icons.visibility_off_rounded),
-              isFullWidth: true,
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: MishkatSpacing.base),
+              MishkatPrimaryAction(
+                onPressed: () {
+                  final navigator = Navigator.of(context);
+                  final quranRepo = context.read<QuranRepository>();
+                  SpeechRecognitionService? speechService;
+                  try {
+                    speechService = context.read<SpeechRecognitionService>();
+                  } catch (_) {}
+                  navigator.pop();
+                  navigator.push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => QuranOralRecitationPage(
+                        surahNumber: surahNumber,
+                        startGlobalAyah: startGlobalAyah,
+                        endGlobalAyah: endGlobalAyah,
+                        planId: planId,
+                        quranRepository: quranRepo,
+                        speechService: speechService,
+                      ),
+                    ),
+                  );
+                },
+                label: 'بدء التسميع الشفهي الآن',
+                icon: const Icon(Icons.mic_rounded),
+                isFullWidth: true,
+              ),
+              const SizedBox(height: 8),
+              MishkatSecondaryAction(
+                onPressed: () {
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  navigator.push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          const QuranReaderPage(startRangeSelection: true),
+                    ),
+                  );
+                },
+                label: 'التسميع والاستحضار البصري في المصحف',
+                icon: const Icon(Icons.visibility_off_rounded),
+                isFullWidth: true,
+              ),
+            ],
+          ),
         ),
       ),
     );

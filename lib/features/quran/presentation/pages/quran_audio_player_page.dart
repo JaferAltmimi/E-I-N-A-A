@@ -13,6 +13,7 @@ import '../cubit/quran_cubit.dart';
 import '../cubit/quran_state.dart';
 import '../widgets/quran_mini_player.dart';
 import 'haramain_live_page.dart';
+import 'offline_audio_downloads_page.dart';
 
 /// Dedicated Quran Audio Player page housing Recitations, Live Streams, and Quran Radios.
 class QuranAudioPlayerPage extends StatefulWidget {
@@ -63,6 +64,18 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'التنزيلات دون إنترنت',
+            icon: const Icon(Icons.download_for_offline_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const OfflineAudioDownloadsPage(),
+              ),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: colors.primary,

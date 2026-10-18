@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/services/audio_service.dart';
 import '../../data/models/oral_recitation_models.dart';
+import '../../data/models/murajaah_models.dart';
 import '../../data/models/quran_models.dart';
 import '../../data/repositories/quran_repository.dart';
 import '../services/quran_alignment_engine.dart';
@@ -22,14 +23,16 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     required this.quranRepository,
     required this.memorizationCubit,
     this.audioService,
-  })  : alignmentEngine = alignmentEngine ?? const QuranAlignmentEngine(),
-        super(const QuranOralRecitationState());
+    this.ownsSpeechService = false,
+  }) : alignmentEngine = alignmentEngine ?? const QuranAlignmentEngine(),
+       super(const QuranOralRecitationState());
 
   final SpeechRecognitionService speechService;
   final QuranAlignmentEngine alignmentEngine;
   final QuranRepository quranRepository;
   final QuranMemorizationCubit memorizationCubit;
   final QuranAudioService? audioService;
+  final bool ownsSpeechService;
 
   StreamSubscription<SpeechRecognitionResultData>? _resultSubscription;
   StreamSubscription<String>? _errorSubscription;
@@ -37,6 +40,7 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
   Timer? _durationTimer;
   QuranData? _quranData;
   bool _isProcessingPermission = false;
+  bool _isRestartingRecognition = false;
 
   int _committedTargetIndex = 0;
   List<RecitationWordAlignment> _committedAlignedWords = const [];
@@ -50,17 +54,25 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     int? endGlobalAyah,
     String? planId,
   }) async {
+    _durationTimer?.cancel();
+    _durationTimer = null;
+    _cancelSubscriptions();
+    try {
+      await speechService.cancelListening();
+    } catch (_) {}
     _committedTargetIndex = 0;
     _committedAlignedWords = const [];
     _committedDiscrepancies = const [];
     _lastProcessedTranscript = '';
 
-    emit(state.copyWith(
-      lifecycle: OralRecitationLifecycle.idle,
-      clearError: true,
-      isMemorizationCommitted: false,
-      committedTargetIndex: 0,
-    ));
+    emit(
+      state.copyWith(
+        lifecycle: OralRecitationLifecycle.idle,
+        clearError: true,
+        isMemorizationCommitted: false,
+        committedTargetIndex: 0,
+      ),
+    );
 
     try {
       _quranData ??= await quranRepository.load();
@@ -71,8 +83,12 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
         orElse: () => chapters.first,
       );
 
-      final resolvedStart = startGlobalAyah ?? chapter.globalStart;
-      final resolvedEnd = endGlobalAyah ?? (chapter.globalStart + chapter.ayahs.length - 1);
+      final rawStart = (startGlobalAyah ?? chapter.globalStart).clamp(1, 6236);
+      final rawEnd =
+          (endGlobalAyah ?? (chapter.globalStart + chapter.ayahs.length - 1))
+              .clamp(1, 6236);
+      final resolvedStart = min(rawStart, rawEnd);
+      final resolvedEnd = max(rawStart, rawEnd);
 
       final targetWords = alignmentEngine.prepareTargetTokens(
         chapters: chapters,
@@ -81,13 +97,16 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
       );
 
       final initialAligned = targetWords
-          .map((w) => RecitationWordAlignment(
-                authoritativeWord: w,
-                status: WordAlignmentStatus.upcoming,
-              ))
+          .map(
+            (w) => RecitationWordAlignment(
+              authoritativeWord: w,
+              status: WordAlignmentStatus.upcoming,
+            ),
+          )
           .toList(growable: false);
 
-      final sessionId = 'oral_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999999)}';
+      final sessionId =
+          'oral_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999999)}';
 
       final hasPerm = await speechService.hasPermission();
       var lifecycle = OralRecitationLifecycle.permissionDenied;
@@ -98,41 +117,45 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
           lifecycle = OralRecitationLifecycle.ready;
         } else {
           lifecycle = OralRecitationLifecycle.recognizerUnavailable;
-          errorMessage = 'خدمة التعرف على الكلام غير متاحة على هذا الجهاز حاليًا.';
+          errorMessage = 'التعرف الصوتي المحلي غير جاهز. نزّل حزمة اللغة العربية من إعدادات الجهاز ثم أعد المحاولة.';
         }
       }
 
-      emit(state.copyWith(
-        lifecycle: lifecycle,
-        errorMessage: errorMessage,
-        sessionId: sessionId,
-        surahNumber: chapter.number,
-        surahName: chapter.name,
-        startGlobalAyah: resolvedStart,
-        endGlobalAyah: resolvedEnd,
-        planId: planId,
-        targetWords: targetWords,
-        alignedWords: initialAligned,
-        discrepancies: const [],
-        currentGlobalAyah: resolvedStart,
-        currentWordIndex: 0,
-        committedTargetIndex: 0,
-        liveTranscript: '',
-        progressPercentage: 0.0,
-        matchedWordsCount: 0,
-        omissionsCount: 0,
-        substitutionsCount: 0,
-        uncertainCount: 0,
-        durationSeconds: 0,
-        revealedGlobals: const {},
-        completedGlobalAyahs: const {},
-        summary: null,
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: lifecycle,
+          errorMessage: errorMessage,
+          sessionId: sessionId,
+          surahNumber: chapter.number,
+          surahName: chapter.name,
+          startGlobalAyah: resolvedStart,
+          endGlobalAyah: resolvedEnd,
+          planId: planId,
+          targetWords: targetWords,
+          alignedWords: initialAligned,
+          discrepancies: const [],
+          currentGlobalAyah: resolvedStart,
+          currentWordIndex: 0,
+          committedTargetIndex: 0,
+          liveTranscript: '',
+          progressPercentage: 0.0,
+          matchedWordsCount: 0,
+          omissionsCount: 0,
+          substitutionsCount: 0,
+          uncertainCount: 0,
+          durationSeconds: 0,
+          revealedGlobals: const {},
+          completedGlobalAyahs: const {},
+          summary: null,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.error,
-        errorMessage: 'تعذّر إعداد جلسة التسميع: $e',
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.error,
+          errorMessage: 'تعذّر إعداد جلسة التسميع: $e',
+        ),
+      );
     }
   }
 
@@ -144,10 +167,12 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
 
     try {
       // 1. Immediately enter a visible requesting state
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.requestingPermission,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.requestingPermission,
+          clearError: true,
+        ),
+      );
 
       // 2. Check current microphone permission status
       var hasPerm = await speechService.hasPermission();
@@ -161,23 +186,30 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
 
       if (!hasPerm) {
         // Permission was denied
-        emit(state.copyWith(
-          lifecycle: OralRecitationLifecycle.permissionDenied,
-          errorMessage: 'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك.',
-        ));
+        emit(
+          state.copyWith(
+            lifecycle: OralRecitationLifecycle.permissionDenied,
+            errorMessage:
+                'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك.',
+          ),
+        );
         return;
       }
 
       // 4. Permission granted -> transition to engine initialization
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.permissionGranted,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.permissionGranted,
+          clearError: true,
+        ),
+      );
 
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.initializingSpeechEngine,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.initializingSpeechEngine,
+          clearError: true,
+        ),
+      );
 
       // 5. Initialize the speech recognition engine
       final isAvailable = await speechService.initialize();
@@ -186,30 +218,39 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
       if (!isAvailable) {
         final stillHasPerm = await speechService.hasPermission();
         if (!stillHasPerm) {
-          emit(state.copyWith(
-            lifecycle: OralRecitationLifecycle.permissionDenied,
-            errorMessage: 'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك.',
-          ));
+          emit(
+            state.copyWith(
+              lifecycle: OralRecitationLifecycle.permissionDenied,
+              errorMessage:
+                  'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك.',
+            ),
+          );
         } else {
-          emit(state.copyWith(
-            lifecycle: OralRecitationLifecycle.recognizerUnavailable,
-            errorMessage: 'خدمة التعرف على الكلام غير متاحة على هذا الجهاز حاليًا.',
-          ));
+          emit(
+            state.copyWith(
+              lifecycle: OralRecitationLifecycle.recognizerUnavailable,
+              errorMessage: 'التعرف الصوتي المحلي غير جاهز. نزّل حزمة اللغة العربية من إعدادات الجهاز ثم أعد المحاولة.',
+            ),
+          );
         }
         return;
       }
 
       // 6. Transition to ready
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.ready,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.ready,
+          clearError: true,
+        ),
+      );
     } catch (e) {
       if (isClosed) return;
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.error,
-        errorMessage: 'تعذر تهيئة التعرف الصوتي. حاول مرة أخرى.',
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.error,
+          errorMessage: 'تعذر تهيئة التعرف الصوتي. حاول مرة أخرى.',
+        ),
+      );
     } finally {
       _isProcessingPermission = false;
     }
@@ -217,26 +258,33 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
 
   /// Opens application system settings so the user can grant permission manually.
   Future<void> openAppSettings() async {
-    emit(state.copyWith(
-      lifecycle: OralRecitationLifecycle.permissionPermanentlyDenied,
-      errorMessage: 'إذن الميكروفون مرفوض من إعدادات الجهاز. افتح إعدادات التطبيق وفعّل الميكروفون، ثم ارجع وحاول مرة أخرى.',
-    ));
+    emit(
+      state.copyWith(
+        lifecycle: OralRecitationLifecycle.permissionPermanentlyDenied,
+        errorMessage: 'إذن الميكروفون مرفوض من إعدادات الجهاز. افتح إعدادات التطبيق وفعّل الميكروفون، ثم ارجع وحاول مرة أخرى.',
+      ),
+    );
     await speechService.openAppSettings();
   }
 
   /// Re-evaluates permission status and engine availability (e.g. after returning from Settings).
   Future<void> checkAndRefreshPermission() async {
     if (isClosed || state.lifecycle.isListening) return;
+    final shouldRemainPaused = state.lifecycle.isPaused;
 
     final hasPerm = await speechService.hasPermission();
     if (!hasPerm) {
-      if (state.lifecycle == OralRecitationLifecycle.permissionPermanentlyDenied) {
+      if (state.lifecycle ==
+          OralRecitationLifecycle.permissionPermanentlyDenied) {
         return;
       }
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.permissionDenied,
-        errorMessage: 'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك.',
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.permissionDenied,
+          errorMessage:
+              'نحتاج إلى إذن الميكروفون حتى نتمكن من الاستماع إلى تلاوتك.',
+        ),
+      );
       return;
     }
 
@@ -244,15 +292,21 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     if (isClosed) return;
 
     if (isAvailable) {
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.ready,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: shouldRemainPaused
+              ? OralRecitationLifecycle.paused
+              : OralRecitationLifecycle.ready,
+          clearError: true,
+        ),
+      );
     } else {
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.recognizerUnavailable,
-        errorMessage: 'خدمة التعرف على الكلام غير متاحة على هذا الجهاز حاليًا.',
-      ));
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.recognizerUnavailable,
+          errorMessage: 'التعرف الصوتي المحلي غير جاهز. نزّل حزمة اللغة العربية من إعدادات الجهاز ثم أعد المحاولة.',
+        ),
+      );
     }
   }
 
@@ -284,19 +338,24 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     // 4. Start native microphone capture
     final ok = await speechService.startListening(localeId: 'ar_SA');
     if (!ok) {
-      emit(state.copyWith(
-        lifecycle: OralRecitationLifecycle.error,
-        errorMessage: 'تعذر تشغيل الميكروفون وبدء الاستماع. حاول مرة أخرى.',
-      ));
+      _cancelSubscriptions();
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.error,
+          errorMessage: 'تعذر تشغيل الميكروفون وبدء الاستماع. حاول مرة أخرى.',
+        ),
+      );
       return;
     }
 
     _startDurationTimer();
 
-    emit(state.copyWith(
-      lifecycle: OralRecitationLifecycle.listening,
-      clearError: true,
-    ));
+    emit(
+      state.copyWith(
+        lifecycle: OralRecitationLifecycle.listening,
+        clearError: true,
+      ),
+    );
   }
 
   /// Pauses microphone capture and pauses the timer.
@@ -322,6 +381,13 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     if (ok) {
       _startDurationTimer();
       emit(state.copyWith(lifecycle: OralRecitationLifecycle.listening));
+    } else {
+      emit(
+        state.copyWith(
+          lifecycle: OralRecitationLifecycle.paused,
+          errorMessage: 'تعذّر استئناف الاستماع. تأكد من جاهزية الميكروفون وحزمة اللغة العربية.',
+        ),
+      );
     }
   }
 
@@ -345,10 +411,12 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
 
     final summary = _buildSummary();
 
-    emit(state.copyWith(
-      lifecycle: OralRecitationLifecycle.completed,
-      summary: summary,
-    ));
+    emit(
+      state.copyWith(
+        lifecycle: OralRecitationLifecycle.completed,
+        summary: summary,
+      ),
+    );
 
     try {
       await speechService.stopListening();
@@ -359,38 +427,52 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
   Future<void> commitToMemorization() async {
     final summary = state.summary;
     final sessionId = state.sessionId;
-    if (summary == null || sessionId == null || state.isMemorizationCommitted) return;
+    if (summary == null || sessionId == null || state.isMemorizationCommitted) {
+      return;
+    }
 
     emit(state.copyWith(isCommittingToMemorization: true, clearError: true));
 
     try {
-      final outcome = summary.suggestedOutcome;
+      final evaluatedAyahs = <int>{
+        for (final word in state.alignedWords)
+          if (!word.status.isUpcoming) word.authoritativeWord.globalAyah,
+      };
+      if (evaluatedAyahs.isEmpty) {
+        emit(
+          state.copyWith(
+            isCommittingToMemorization: false,
+            errorMessage:
+                'لم تُسمع آية مكتملة بعد، لذلك لم تُسجّل نتيجة في سجل الحفظ.',
+          ),
+        );
+        return;
+      }
 
-      // Group words by global Ayah to commit outcomes
-      final ayahsInSession = state.completedGlobalAyahs.isNotEmpty
-          ? state.completedGlobalAyahs
-          : {for (var g = state.startGlobalAyah; g <= state.endGlobalAyah; g++) g};
-
-      for (final globalAyah in ayahsInSession) {
+      for (final globalAyah in evaluatedAyahs) {
         final opId = 'rec_oral_${sessionId}_$globalAyah';
         await memorizationCubit.recordReviewOutcome(
           globalAyah: globalAyah,
-          outcome: outcome,
+          outcome: _outcomeForAyah(globalAyah),
           sessionId: sessionId,
           planId: state.planId,
           operationId: opId,
         );
       }
 
-      emit(state.copyWith(
-        isCommittingToMemorization: false,
-        isMemorizationCommitted: true,
-      ));
+      emit(
+        state.copyWith(
+          isCommittingToMemorization: false,
+          isMemorizationCommitted: true,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        isCommittingToMemorization: false,
-        errorMessage: 'تعذّر تسجيل التقدم في سجل الحفظ: $e',
-      ));
+      emit(
+        state.copyWith(
+          isCommittingToMemorization: false,
+          errorMessage: 'تعذّر تسجيل التقدم في سجل الحفظ: $e',
+        ),
+      );
     }
   }
 
@@ -411,8 +493,12 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
       transcript: transcript,
       confidence: result.confidence,
       committedTargetIndex: _committedTargetIndex,
-      committedAlignedWords: _committedAlignedWords.isNotEmpty ? _committedAlignedWords : null,
-      committedDiscrepancies: _committedDiscrepancies.isNotEmpty ? _committedDiscrepancies : null,
+      committedAlignedWords: _committedAlignedWords.isNotEmpty
+          ? _committedAlignedWords
+          : null,
+      committedDiscrepancies: _committedDiscrepancies.isNotEmpty
+          ? _committedDiscrepancies
+          : null,
       isFinal: result.isFinal,
     );
 
@@ -428,31 +514,35 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     }
 
     if (kDebugMode) {
-      debugPrint('[Q14_CUBIT_COMMIT] session=${state.sessionId} '
-          'isFinal=${result.isFinal} '
-          'alignCommitted=${alignResult.committedTargetIndex} '
-          'newCommitted=$_committedTargetIndex '
-          'currentAyah=${alignResult.currentGlobalAyah} '
-          'currentWord=${alignResult.currentWordIndex} '
-          'matched=${alignResult.matchedWordsCount} '
-          'omi=${alignResult.omissionsCount} '
-          'disc=${alignResult.discrepancies.length}');
+      debugPrint(
+        '[Q14_CUBIT_COMMIT] session=${state.sessionId} '
+        'isFinal=${result.isFinal} '
+        'alignCommitted=${alignResult.committedTargetIndex} '
+        'newCommitted=$_committedTargetIndex '
+        'currentAyah=${alignResult.currentGlobalAyah} '
+        'currentWord=${alignResult.currentWordIndex} '
+        'matched=${alignResult.matchedWordsCount} '
+        'omi=${alignResult.omissionsCount} '
+        'disc=${alignResult.discrepancies.length}',
+      );
     }
 
-    emit(state.copyWith(
-      liveTranscript: transcript,
-      alignedWords: alignResult.alignedWords,
-      discrepancies: alignResult.discrepancies,
-      currentGlobalAyah: alignResult.currentGlobalAyah,
-      currentWordIndex: alignResult.currentWordIndex,
-      committedTargetIndex: _committedTargetIndex,
-      progressPercentage: alignResult.progressPercentage,
-      matchedWordsCount: alignResult.matchedWordsCount,
-      omissionsCount: alignResult.omissionsCount,
-      substitutionsCount: alignResult.substitutionsCount,
-      uncertainCount: alignResult.uncertainCount,
-      completedGlobalAyahs: alignResult.completedGlobalAyahs,
-    ));
+    emit(
+      state.copyWith(
+        liveTranscript: transcript,
+        alignedWords: alignResult.alignedWords,
+        discrepancies: alignResult.discrepancies,
+        currentGlobalAyah: alignResult.currentGlobalAyah,
+        currentWordIndex: alignResult.currentWordIndex,
+        committedTargetIndex: _committedTargetIndex,
+        progressPercentage: alignResult.progressPercentage,
+        matchedWordsCount: alignResult.matchedWordsCount,
+        omissionsCount: alignResult.omissionsCount,
+        substitutionsCount: alignResult.substitutionsCount,
+        uncertainCount: alignResult.uncertainCount,
+        completedGlobalAyahs: alignResult.completedGlobalAyahs,
+      ),
+    );
 
     if (alignResult.isCompleted) {
       finishSession();
@@ -461,14 +551,22 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
 
   void _onSpeechError(String error) {
     if (isClosed) return;
-    // Non-fatal recognition errors (like no-match on silence) are logged into state
-    emit(state.copyWith(errorMessage: error));
+    _durationTimer?.cancel();
+    _durationTimer = null;
+    emit(
+      state.copyWith(
+        lifecycle: OralRecitationLifecycle.paused,
+        errorMessage: error,
+      ),
+    );
   }
 
   void _onSpeechStatus(String status) {
     if (isClosed) return;
     if (kDebugMode) {
-      debugPrint('[Q14_CUBIT_STATUS] status="$status" listening=${state.lifecycle.isListening}');
+      debugPrint(
+        '[Q14_CUBIT_STATUS] status="$status" listening=${state.lifecycle.isListening}',
+      );
     }
     if (status == 'notListening' && state.lifecycle.isListening) {
       // On pause / utterance end: commit current target progress if forward
@@ -479,13 +577,57 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
           _committedDiscrepancies = List.unmodifiable(state.discrepancies);
         }
       }
-      _lastProcessedTranscript = ''; // Reset deduplication buffer for fresh utterance
+      _lastProcessedTranscript =
+          ''; // Reset deduplication buffer for fresh utterance
 
       // Re-arm listening if recognizer stopped due to pause
       if (!state.lifecycle.isPaused && !state.lifecycle.isCompleted) {
-        speechService.startListening(localeId: 'ar_SA');
+        unawaited(_restartRecognition());
       }
     }
+  }
+
+  Future<void> _restartRecognition() async {
+    if (_isRestartingRecognition || isClosed || !state.lifecycle.isListening) {
+      return;
+    }
+    _isRestartingRecognition = true;
+    try {
+      final restarted = await speechService.startListening(localeId: 'ar_SA');
+      if (!restarted && !isClosed && state.lifecycle.isListening) {
+        _durationTimer?.cancel();
+        _durationTimer = null;
+        emit(
+          state.copyWith(
+            lifecycle: OralRecitationLifecycle.paused,
+            errorMessage: 'توقف الاستماع. اضغط متابعة، وتأكد من جاهزية حزمة اللغة العربية على الجهاز.',
+          ),
+        );
+      }
+    } finally {
+      _isRestartingRecognition = false;
+    }
+  }
+
+  ReviewOutcome _outcomeForAyah(int globalAyah) {
+    final words = state.alignedWords
+        .where((word) => word.authoritativeWord.globalAyah == globalAyah)
+        .toList(growable: false);
+    if (words.isEmpty) return ReviewOutcome.failed;
+    final matched = words.where((word) => word.status.isMatched).length;
+    final omissions = words.where((word) => word.status.isOmission).length;
+    final substitutions = words
+        .where((word) => word.status.isSubstitution)
+        .length;
+    final score = matched / words.length * 100;
+    if (score >= 95 && omissions == 0 && substitutions == 0) {
+      return ReviewOutcome.easy;
+    }
+    if (score >= 85 && substitutions <= 1 && omissions <= 1) {
+      return ReviewOutcome.good;
+    }
+    if (score >= 65) return ReviewOutcome.difficult;
+    return ReviewOutcome.failed;
   }
 
   void _startDurationTimer() {
@@ -497,11 +639,15 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
   }
 
   OralRecitationSessionSummary _buildSummary() {
-    final totalAyahs = (state.endGlobalAyah - state.startGlobalAyah + 1).clamp(1, 6236);
+    final totalAyahs = (state.endGlobalAyah - state.startGlobalAyah + 1).clamp(
+      1,
+      6236,
+    );
     final matchedAyahs = state.completedGlobalAyahs.length;
 
     return OralRecitationSessionSummary(
-      sessionId: state.sessionId ?? 'oral_${DateTime.now().millisecondsSinceEpoch}',
+      sessionId:
+          state.sessionId ?? 'oral_${DateTime.now().millisecondsSinceEpoch}',
       startGlobalAyah: state.startGlobalAyah,
       endGlobalAyah: state.endGlobalAyah,
       surahNumber: state.surahNumber,
@@ -534,7 +680,11 @@ class QuranOralRecitationCubit extends Cubit<QuranOralRecitationState> {
     _durationTimer?.cancel();
     _cancelSubscriptions();
     try {
-      await speechService.stopListening();
+      if (ownsSpeechService) {
+        await speechService.dispose();
+      } else {
+        await speechService.stopListening();
+      }
     } catch (_) {}
     return super.close();
   }

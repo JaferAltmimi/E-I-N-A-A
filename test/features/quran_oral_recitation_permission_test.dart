@@ -14,10 +14,12 @@ import 'package:mishkat_app/features/quran/presentation/services/speech_recognit
 
 class InMemoryLocalStorageService implements LocalStorageService {
   final Map<String, dynamic> _data = {};
-  @override Future<void> init() async {}
   @override
-  Map<String, dynamic> readMap(String key) =>
-      _data[key] is Map ? Map<String, dynamic>.from(_data[key]) : <String, dynamic>{};
+  Future<void> init() async {}
+  @override
+  Map<String, dynamic> readMap(String key) => _data[key] is Map
+      ? Map<String, dynamic>.from(_data[key])
+      : <String, dynamic>{};
   @override
   List<dynamic> readList(String key) =>
       _data[key] is List ? List<dynamic>.from(_data[key]) : <dynamic>[];
@@ -25,9 +27,11 @@ class InMemoryLocalStorageService implements LocalStorageService {
   int readInt(String key, [int fallback = 0]) =>
       _data[key] is num ? (_data[key] as num).toInt() : fallback;
   @override
-  Future<void> writeMap(String key, Map<String, dynamic> value) async => _data[key] = value;
+  Future<void> writeMap(String key, Map<String, dynamic> value) async =>
+      _data[key] = value;
   @override
-  Future<void> writeList(String key, List<dynamic> value) async => _data[key] = value;
+  Future<void> writeList(String key, List<dynamic> value) async =>
+      _data[key] = value;
   @override
   Future<void> writeInt(String key, int value) async => _data[key] = value;
   @override
@@ -107,25 +111,43 @@ void main() {
   });
 
   group('Q14 Microphone Permission State Machine Tests', () {
-    test('1. Initial state without permission enters permissionDenied gate', () async {
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+    test(
+      '1. Initial state without permission enters permissionDenied gate',
+      () async {
+        await cubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
 
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.permissionDenied);
-      expect(cubit.state.errorMessage, isNull);
-    });
+        expect(cubit.state.lifecycle, OralRecitationLifecycle.permissionDenied);
+        expect(cubit.state.errorMessage, isNull);
+      },
+    );
 
-    test('2. Permission already granted transitions directly to ready', () async {
-      mockSpeech.setPermission(true);
-      mockSpeech.setAvailable(true);
+    test(
+      '2. Permission already granted transitions directly to ready',
+      () async {
+        mockSpeech.setPermission(true);
+        mockSpeech.setAvailable(true);
 
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+        await cubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
 
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
-      expect(cubit.state.errorMessage, isNull);
-    });
+        expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
+        expect(cubit.state.errorMessage, isNull);
+      },
+    );
 
     test('3. Permission initially undetermined and then granted transitions to ready', () async {
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+      await cubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
       expect(cubit.state.lifecycle, OralRecitationLifecycle.permissionDenied);
 
       // User grants permission on prompt
@@ -138,7 +160,11 @@ void main() {
     });
 
     test('4. Permission denied transitions to permissionDenied with Arabic feedback', () async {
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+      await cubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
+      );
 
       // User denies permission
       mockSpeech.setPermission(false);
@@ -149,163 +175,217 @@ void main() {
       expect(cubit.state.errorMessage, contains('نحتاج إلى إذن الميكروفون'));
     });
 
-    test('5. Permission permanently denied shows instructions and openAppSettings', () async {
-      mockSpeech.setPermanentlyDenied(true);
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+    test(
+      '5. Permission permanently denied shows instructions and openAppSettings',
+      () async {
+        mockSpeech.setPermanentlyDenied(true);
+        await cubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
 
-      await cubit.openAppSettings();
+        await cubit.openAppSettings();
 
-      expect(mockSpeech.openAppSettingsCount, 1);
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.permissionPermanentlyDenied);
-      expect(cubit.state.errorMessage, contains('إذن الميكروفون مرفوض من إعدادات الجهاز'));
-    });
+        expect(mockSpeech.openAppSettingsCount, 1);
+        expect(
+          cubit.state.lifecycle,
+          OralRecitationLifecycle.permissionPermanentlyDenied,
+        );
+        expect(
+          cubit.state.errorMessage,
+          contains('إذن الميكروفون مرفوض من إعدادات الجهاز'),
+        );
+      },
+    );
 
-    test('6. User returns from Settings and grants permission refreshes to ready', () async {
-      mockSpeech.setPermission(false);
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
-      await cubit.openAppSettings();
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.permissionPermanentlyDenied);
+    test(
+      '6. User returns from Settings and grants permission refreshes to ready',
+      () async {
+        mockSpeech.setPermission(false);
+        await cubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await cubit.openAppSettings();
+        expect(
+          cubit.state.lifecycle,
+          OralRecitationLifecycle.permissionPermanentlyDenied,
+        );
 
-      // User switches toggle in Settings
-      mockSpeech.setPermission(true);
-      mockSpeech.setAvailable(true);
+        // User switches toggle in Settings
+        mockSpeech.setPermission(true);
+        mockSpeech.setAvailable(true);
 
-      // App resumes
-      await cubit.checkAndRefreshPermission();
+        // App resumes
+        await cubit.checkAndRefreshPermission();
 
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
-      expect(cubit.state.errorMessage, isNull);
-    });
+        expect(cubit.state.lifecycle, OralRecitationLifecycle.ready);
+        expect(cubit.state.errorMessage, isNull);
+      },
+    );
 
     test('7. Speech engine unavailable emits recognizerUnavailable with actionable message', () async {
       mockSpeech.setPermission(true);
-      mockSpeech.setAvailable(false); // Engine missing (e.g. no Google Speech Services)
+      mockSpeech.setAvailable(
+        false,
+      ); // Engine missing (e.g. no Google Speech Services)
 
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
-
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.recognizerUnavailable);
-      expect(cubit.state.errorMessage, contains('غير متاحة على هذا الجهاز'));
-    });
-
-    test('8. Rapid repeated calls to requestPermissionAndInitialize are guarded', () async {
-      // Wrap speech service to simulate latency
-      final slowSpeech = MockSpeechRecognitionService(initialPermission: false)
-        ..autoGrantOnRequest = true;
-      final testCubit = QuranOralRecitationCubit(
-        speechService: slowSpeech,
-        quranRepository: fakeQuranRepo,
-        memorizationCubit: memCubit,
-        audioService: fakeAudioService,
+      await cubit.prepareSession(
+        surahNumber: 1,
+        startGlobalAyah: 1,
+        endGlobalAyah: 2,
       );
-      await testCubit.prepareSession(surahNumber: 1);
 
-      // Trigger 4 concurrent requests rapidly
-      final future1 = testCubit.requestPermissionAndInitialize();
-      final future2 = testCubit.requestPermissionAndInitialize();
-      final future3 = testCubit.requestPermissionAndInitialize();
-      final future4 = testCubit.requestPermissionAndInitialize();
-
-      await Future.wait([future1, future2, future3, future4]);
-
-      // Only 1 native request should have executed
-      expect(slowSpeech.permissionRequestCount, 1);
-      expect(testCubit.state.lifecycle, OralRecitationLifecycle.ready);
-      await testCubit.close();
+      expect(
+        cubit.state.lifecycle,
+        OralRecitationLifecycle.recognizerUnavailable,
+      );
+      expect(cubit.state.errorMessage, contains('حزمة اللغة العربية'));
     });
 
-    test('9. startRecitation stops background audio and requires ready state', () async {
-      mockSpeech.setPermission(true);
-      mockSpeech.setAvailable(true);
-      await cubit.prepareSession(surahNumber: 1, startGlobalAyah: 1, endGlobalAyah: 2);
+    test(
+      '8. Rapid repeated calls to requestPermissionAndInitialize are guarded',
+      () async {
+        // Wrap speech service to simulate latency
+        final slowSpeech = MockSpeechRecognitionService(
+          initialPermission: false,
+        )..autoGrantOnRequest = true;
+        final testCubit = QuranOralRecitationCubit(
+          speechService: slowSpeech,
+          quranRepository: fakeQuranRepo,
+          memorizationCubit: memCubit,
+          audioService: fakeAudioService,
+        );
+        await testCubit.prepareSession(surahNumber: 1);
 
-      await cubit.startRecitation();
+        // Trigger 4 concurrent requests rapidly
+        final future1 = testCubit.requestPermissionAndInitialize();
+        final future2 = testCubit.requestPermissionAndInitialize();
+        final future3 = testCubit.requestPermissionAndInitialize();
+        final future4 = testCubit.requestPermissionAndInitialize();
 
-      expect(fakeAudioService.stopCalled, isTrue);
-      expect(mockSpeech.isListening, isTrue);
-      expect(cubit.state.lifecycle, OralRecitationLifecycle.listening);
-    });
+        await Future.wait([future1, future2, future3, future4]);
+
+        // Only 1 native request should have executed
+        expect(slowSpeech.permissionRequestCount, 1);
+        expect(testCubit.state.lifecycle, OralRecitationLifecycle.ready);
+        await testCubit.close();
+      },
+    );
+
+    test(
+      '9. startRecitation stops background audio and requires ready state',
+      () async {
+        mockSpeech.setPermission(true);
+        mockSpeech.setAvailable(true);
+        await cubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+
+        await cubit.startRecitation();
+
+        expect(fakeAudioService.stopCalled, isTrue);
+        expect(mockSpeech.isListening, isTrue);
+        expect(cubit.state.lifecycle, OralRecitationLifecycle.listening);
+      },
+    );
   });
 
   group('Q14 Microphone Permission Widget Tests', () {
-    testWidgets('Tapping السماح والمتابعة triggers permission request and transitions to ready', (tester) async {
-      mockSpeech.setPermission(false);
-      mockSpeech.autoGrantOnRequest = true;
-      mockSpeech.setAvailable(true);
+    testWidgets(
+      'Tapping السماح والمتابعة triggers permission request and transitions to ready',
+      (tester) async {
+        mockSpeech.setPermission(false);
+        mockSpeech.autoGrantOnRequest = true;
+        mockSpeech.setAvailable(true);
 
-      await tester.pumpWidget(
-        MultiBlocProvider(
-          providers: [
-            BlocProvider<QuranMemorizationCubit>.value(value: memCubit),
-            RepositoryProvider<QuranRepository>.value(value: fakeQuranRepo),
-          ],
-          child: MaterialApp(
-            home: QuranOralRecitationPage(
-              surahNumber: 1,
-              startGlobalAyah: 1,
-              endGlobalAyah: 2,
-              speechService: mockSpeech,
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<QuranMemorizationCubit>.value(value: memCubit),
+              RepositoryProvider<QuranRepository>.value(value: fakeQuranRepo),
+            ],
+            child: MaterialApp(
+              home: QuranOralRecitationPage(
+                surahNumber: 1,
+                startGlobalAyah: 1,
+                endGlobalAyah: 2,
+                speechService: mockSpeech,
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // UI presents the introductory permission gate card
-      expect(find.text('إذن الميكروفون مطلوب'), findsOneWidget);
-      final allowButton = find.text('السماح والمتابعة');
-      expect(allowButton, findsOneWidget);
+        // UI presents the introductory permission gate card
+        expect(find.text('إذن الميكروفون مطلوب'), findsOneWidget);
+        final allowButton = find.text('السماح والمتابعة');
+        expect(allowButton, findsOneWidget);
 
-      // Tap السماح والمتابعة
-      await tester.tap(allowButton);
-      await tester.pumpAndSettle();
+        // Tap السماح والمتابعة
+        await tester.tap(allowButton);
+        await tester.pumpAndSettle();
 
-      // Native permission was requested
-      expect(mockSpeech.permissionRequestCount, 1);
+        // Native permission was requested
+        expect(mockSpeech.permissionRequestCount, 1);
 
-      // Canvas transitions to ready
-      expect(find.text('جاهز للتسميع'), findsOneWidget);
-      expect(find.text('بدء التسميع'), findsOneWidget);
-    });
+        // Canvas transitions to ready
+        expect(find.text('جاهز للتسميع'), findsOneWidget);
+        expect(find.text('بدء التسميع'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Permission permanently denied shows فتح إعدادات التطبيق button', (tester) async {
-      mockSpeech.setPermission(false);
-      mockSpeech.setPermanentlyDenied(true);
+    testWidgets(
+      'Permission permanently denied shows فتح إعدادات التطبيق button',
+      (tester) async {
+        mockSpeech.setPermission(false);
+        mockSpeech.setPermanentlyDenied(true);
 
-      await tester.pumpWidget(
-        MultiBlocProvider(
-          providers: [
-            BlocProvider<QuranMemorizationCubit>.value(value: memCubit),
-            RepositoryProvider<QuranRepository>.value(value: fakeQuranRepo),
-          ],
-          child: MaterialApp(
-            home: QuranOralRecitationPage(
-              surahNumber: 1,
-              startGlobalAyah: 1,
-              endGlobalAyah: 2,
-              speechService: mockSpeech,
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<QuranMemorizationCubit>.value(value: memCubit),
+              RepositoryProvider<QuranRepository>.value(value: fakeQuranRepo),
+            ],
+            child: MaterialApp(
+              home: QuranOralRecitationPage(
+                surahNumber: 1,
+                startGlobalAyah: 1,
+                endGlobalAyah: 2,
+                speechService: mockSpeech,
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Tap السماح والمتابعة
-      final cubit = tester.element(find.text('السماح والمتابعة')).read<QuranOralRecitationCubit>();
-      await tester.tap(find.text('السماح والمتابعة'));
-      await tester.pumpAndSettle();
+        // Tap السماح والمتابعة
+        final cubit = tester
+            .element(find.text('السماح والمتابعة'))
+            .read<QuranOralRecitationCubit>();
+        await tester.tap(find.text('السماح والمتابعة'));
+        await tester.pumpAndSettle();
 
-      // User denied -> permanently denied state
-      await cubit.openAppSettings();
-      await tester.pumpAndSettle();
+        // User denied -> permanently denied state
+        await cubit.openAppSettings();
+        await tester.pumpAndSettle();
 
-      expect(find.text('إذن الميكروفون مرفوض من إعدادات الجهاز'), findsOneWidget);
-      expect(find.text('فتح إعدادات التطبيق'), findsOneWidget);
-      expect(find.text('إعادة التحقق من الإذن'), findsOneWidget);
+        expect(
+          find.text('إذن الميكروفون مرفوض من إعدادات الجهاز'),
+          findsOneWidget,
+        );
+        expect(find.text('فتح إعدادات التطبيق'), findsOneWidget);
+        expect(find.text('إعادة التحقق من الإذن'), findsOneWidget);
 
-      // Tap فتح إعدادات التطبيق
-      await tester.tap(find.text('فتح إعدادات التطبيق'));
-      await tester.pumpAndSettle();
-      expect(mockSpeech.openAppSettingsCount, 2); // Initial open + button tap
-    });
+        // Tap فتح إعدادات التطبيق
+        await tester.tap(find.text('فتح إعدادات التطبيق'));
+        await tester.pumpAndSettle();
+        expect(mockSpeech.openAppSettingsCount, 2); // Initial open + button tap
+      },
+    );
   });
 }

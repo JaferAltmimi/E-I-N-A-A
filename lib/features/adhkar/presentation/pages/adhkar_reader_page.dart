@@ -39,6 +39,12 @@ class AdhkarReaderPage extends StatelessWidget {
           ),
           title: Text(category.name),
           actions: [
+            if (category.items.isNotEmpty && progress.isNotEmpty)
+              IconButton(
+                tooltip: 'بدء الورد من جديد',
+                onPressed: () => _confirmReset(context, category),
+                icon: const Icon(Icons.restart_alt_rounded),
+              ),
             if (category.custom)
               IconButton(
                 tooltip: 'إضافة دعاء',
@@ -50,34 +56,80 @@ class AdhkarReaderPage extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            MishkatCard(
+              color: context.mishkat.primarySoft,
+              borderColor: context.mishkat.primary.withValues(alpha: 0.14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        category.name,
-                        style: Theme.of(context).textTheme.headlineSmall,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              category.name,
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              category.custom
+                                  ? 'أدعية تحفظها للرجوع إليها'
+                                  : 'من كتاب حصن المسلم',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.mishkat.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        '$completed من ${category.items.length} مكتمل',
-                        style: TextStyle(color: context.mishkat.textSecondary),
-                      ),
+                      if (category.items.isNotEmpty)
+                        Container(
+                          width: 58,
+                          height: 58,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: context.mishkat.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${((completed / category.items.length) * 100).round()}٪',
+                            style: TextStyle(
+                              color: context.mishkat.primary,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-                if (category.items.isNotEmpty)
-                  SizedBox(
-                    width: 54,
-                    height: 54,
-                    child: CircularProgressIndicator(
-                      value: completed / category.items.length,
-                      strokeWidth: 6,
-                      backgroundColor: context.mishkat.surfaceMuted,
+                  if (category.items.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        value: completed / category.items.length,
+                        minHeight: 7,
+                        backgroundColor: context.mishkat.surface,
+                      ),
                     ),
-                  ),
-              ],
+                    const SizedBox(height: 7),
+                    Text(
+                      completed == category.items.length
+                          ? 'أتممت الورد، تقبّل الله منك'
+                          : '$completed من ${category.items.length} أذكار مكتملة',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.mishkat.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             if (category.custom && category.items.isEmpty)
@@ -100,6 +152,7 @@ class AdhkarReaderPage extends StatelessWidget {
                     item: category.items[index],
                     index: index,
                     done: progress[index] ?? 0,
+                    total: category.items.length,
                   ),
                 ),
           ],
@@ -108,12 +161,34 @@ class AdhkarReaderPage extends StatelessWidget {
     },
   );
 
-  Future<void> _editDua(
-    BuildContext context, {
-    int? index,
-    DhikrItem? item,
-  }) =>
+  Future<void> _editDua(BuildContext context, {int? index, DhikrItem? item}) =>
       DuaEditorSheet.show(context, index: index, item: item);
+
+  Future<void> _confirmReset(
+    BuildContext context,
+    AdhkarCategory category,
+  ) async {
+    final reset = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('بدء الورد من جديد؟'),
+        content: const Text('سيعود عدّ جميع الأذكار في هذا الباب إلى الصفر.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('إعادة العد'),
+          ),
+        ],
+      ),
+    );
+    if (reset == true && context.mounted) {
+      await context.read<AdhkarCubit>().resetCategory(category.id);
+    }
+  }
 }
 
 class _DhikrCard extends StatelessWidget {
@@ -122,11 +197,13 @@ class _DhikrCard extends StatelessWidget {
     required this.item,
     required this.index,
     required this.done,
+    required this.total,
   });
   final AdhkarCategory category;
   final DhikrItem item;
   final int index;
   final int done;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +211,12 @@ class _DhikrCard extends StatelessWidget {
     final completed = remaining == 0;
     return MishkatCard(
       padding: EdgeInsets.zero,
+      color: completed
+          ? context.mishkat.success.withValues(alpha: 0.07)
+          : context.mishkat.surface,
+      borderColor: completed
+          ? context.mishkat.success.withValues(alpha: 0.30)
+          : context.mishkat.border,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: completed
@@ -147,6 +230,40 @@ class _DhikrCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Row(
+                children: [
+                  Text(
+                    'الذكر ${index + 1} من $total',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: context.mishkat.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (completed)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 17,
+                          color: context.mishkat.success,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'تم',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.mishkat.success,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
               if (item.title.isNotEmpty) ...[
                 Text(
                   item.title,
@@ -159,27 +276,42 @@ class _DhikrCard extends StatelessWidget {
               ],
               Text(
                 item.text,
-                style: Theme.of(context).textTheme.bodyLarge
-                    ?.copyWith(fontSize: 18, height: 1.9),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontSize: 18,
+                  height: 1.95,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  FilledButton.tonalIcon(
-                    onPressed: completed
-                        ? null
-                        : () => context.read<AdhkarCubit>().increment(
-                            category.id,
-                            index,
-                          ),
-                    icon: Icon(
-                      completed ? Icons.check : Icons.touch_app_outlined,
-                    ),
-                    label: Text(
-                      completed ? 'تم' : '$remaining / ${item.count}',
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      label: completed
+                          ? 'اكتمل الذكر'
+                          : 'اضغط للعد، المتبقي $remaining من ${item.count}',
+                      child: FilledButton.tonalIcon(
+                        onPressed: completed
+                            ? null
+                            : () => context.read<AdhkarCubit>().increment(
+                                category.id,
+                                index,
+                              ),
+                        icon: Icon(
+                          completed
+                              ? Icons.check_rounded
+                              : Icons.touch_app_outlined,
+                        ),
+                        label: Text(
+                          completed
+                              ? 'اكتمل'
+                              : 'بقي $remaining من ${item.count}',
+                        ),
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 6),
                   IconButton(
                     tooltip: 'نسخ',
                     onPressed: () async {

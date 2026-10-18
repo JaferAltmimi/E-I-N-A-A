@@ -34,6 +34,13 @@ class AdhkarCubit extends Cubit<AdhkarState> {
           }
         }
       }
+      final today = _dayKey(DateTime.now());
+      final shouldResetDailyWirds = saved['dailyDate'] != today;
+      if (shouldResetDailyWirds) {
+        progress
+          ..remove(1)
+          ..remove(133);
+      }
       emit(
         state.copyWith(
           status: AdhkarStatus.ready,
@@ -42,6 +49,7 @@ class AdhkarCubit extends Cubit<AdhkarState> {
           progress: progress,
         ),
       );
+      if (shouldResetDailyWirds) await _persist();
     } on Object catch (error) {
       emit(
         state.copyWith(
@@ -96,6 +104,12 @@ class AdhkarCubit extends Cubit<AdhkarState> {
     await _persist();
   }
 
+  Future<void> resetCategory(int categoryId) async {
+    final progress = _copyProgress()..remove(categoryId);
+    emit(state.copyWith(progress: progress));
+    await _persist();
+  }
+
   Future<void> saveCustom({
     int? index,
     required String title,
@@ -139,6 +153,7 @@ class AdhkarCubit extends Cubit<AdhkarState> {
 
   Future<void> _persist() => _storage.writeMap('adhkar', {
     'custom': state.customItems.map((item) => item.toJson()).toList(),
+    'dailyDate': _dayKey(DateTime.now()),
     'progress': {
       for (final category in state.progress.entries)
         '${category.key}': {
@@ -147,4 +162,9 @@ class AdhkarCubit extends Cubit<AdhkarState> {
         },
     },
   });
+
+  String _dayKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }

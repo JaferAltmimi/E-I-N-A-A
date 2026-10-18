@@ -203,7 +203,7 @@ class _DailyFocusCard extends StatelessWidget {
         title: 'أذكار المساء',
         subtitle: 'اختم يومك بالسكينة',
         icon: Icons.wb_twilight_rounded,
-        categoryId: 1,
+        categoryId: 133,
       );
     }
     if (now.hour >= 22 || now.hour < 5) {

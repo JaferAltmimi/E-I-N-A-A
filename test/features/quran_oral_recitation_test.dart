@@ -354,6 +354,51 @@ void main() {
       },
     );
 
+    test(
+      '5a. completed native cycle restarts only after done',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
+        expect(mockSpeech.startListeningCount, 1);
+
+        mockSpeech.emitStatus('notListening');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(mockSpeech.startListeningCount, 1);
+
+        mockSpeech.emitStatus('done');
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(mockSpeech.startListeningCount, 2);
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.listening);
+        expect(mockSpeech.isListening, isTrue);
+      },
+    );
+
+    test(
+      '5b. silence error re-arms recognition without pausing the session',
+      () async {
+        await oralCubit.prepareSession(
+          surahNumber: 1,
+          startGlobalAyah: 1,
+          endGlobalAyah: 2,
+        );
+        await oralCubit.startRecitation();
+
+        mockSpeech.emitError(
+          'لم أتمكن من تمييز الكلام بوضوح. اقترب من الميكروفون وحاول مجددًا.',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+
+        expect(oralCubit.state.lifecycle, OralRecitationLifecycle.listening);
+        expect(oralCubit.state.errorMessage, isNull);
+        expect(mockSpeech.startListeningCount, 2);
+        expect(mockSpeech.isListening, isTrue);
+      },
+    );
+
     test('6. Revealing and hiding authoritative Ayah text', () async {
       await oralCubit.prepareSession(
         surahNumber: 1,

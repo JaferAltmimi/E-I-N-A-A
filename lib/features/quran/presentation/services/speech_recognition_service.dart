@@ -80,6 +80,7 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
   final _errorController = StreamController<String>.broadcast();
 
   bool _isInitialized = false;
+  bool _hasStartedListening = false;
 
   @override
   Stream<SpeechRecognitionResultData> get resultsStream =>
@@ -157,8 +158,14 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
       if (!ok) return false;
     }
 
-    if (_stt.isListening) {
-      await stopListening();
+    // speech_to_text requires every completed/timed-out session to be ended
+    // with stop/cancel before another listen call. `isListening` is already
+    // false by the time the platform emits `done`, so checking it alone leaves
+    // the native recognizer busy on the next cycle.
+    if (_hasStartedListening) {
+      try {
+        await _stt.cancel();
+      } catch (_) {}
     }
 
     // Determine best available Arabic locale
@@ -187,7 +194,7 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
         listenOptions: SpeechListenOptions(
           listenMode: ListenMode.dictation,
           partialResults: true,
-          cancelOnError: false,
+          cancelOnError: true,
           // Prefer the operating-system language pack so Tasmee keeps working
           // in airplane mode and microphone audio is not sent to a server.
           onDevice: true,
@@ -196,6 +203,7 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
           localeId: targetLocale,
         ),
       );
+      _hasStartedListening = true;
       return _stt.isListening;
     } catch (e) {
       _errorController.add(
@@ -257,6 +265,8 @@ class NativeSpeechRecognitionService implements SpeechRecognitionService {
           'لم يُسمع صوت لفترة. اضغط متابعة عندما تكون مستعدًا.',
         'error_audio' =>
           'تعذّر الوصول إلى الميكروفون. تحقق من عدم استخدامه في تطبيق آخر.',
+        'error_busy' || 'error_client' =>
+          'محرك التعرف الصوتي مشغول مؤقتًا. سيُعاد تشغيل الاستماع تلقائيًا.',
         'error_network' || 'error_network_timeout' => 'التعرف المحلي غير جاهز. نزّل حزمة اللغة العربية من إعدادات الجهاز ثم حاول مجددًا.',
         'error_permission' || 'error_permission_denied' =>
           'إذن الميكروفون أو التعرف على الكلام غير متاح.',
@@ -293,6 +303,7 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
   int permissionRequestCount = 0;
   int openAppSettingsCount = 0;
   int initializeCount = 0;
+  int startListeningCount = 0;
 
   final _resultsController =
       StreamController<SpeechRecognitionResultData>.broadcast();
@@ -349,6 +360,7 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
 
   @override
   Future<bool> startListening({String localeId = 'ar_SA'}) async {
+    startListeningCount++;
     if (!_hasPermission || !_isAvailable) return false;
     _isListening = true;
     _statusController.add('listening');
@@ -387,6 +399,11 @@ class MockSpeechRecognitionService implements SpeechRecognitionService {
   /// Injects simulated status events.
   void emitStatus(String status) {
     if (!_statusController.isClosed) {
+      if (status == 'listening') {
+        _isListening = true;
+      } else if (status == 'notListening' || status == 'done') {
+        _isListening = false;
+      }
       _statusController.add(status);
     }
   }

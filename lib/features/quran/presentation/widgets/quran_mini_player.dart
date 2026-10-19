@@ -13,7 +13,12 @@ import '../cubit/quran_state.dart';
 /// Provides synchronized playback controls, Ayah position, reciter attribution,
 /// scrubbable progress bar, repetition badge, and delay countdown banner.
 class QuranMiniPlayer extends StatelessWidget {
-  const QuranMiniPlayer({super.key});
+  const QuranMiniPlayer({
+    super.key,
+    this.playbackOrigin = QuranPlaybackOrigin.general,
+  });
+
+  final QuranPlaybackOrigin playbackOrigin;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +39,8 @@ class QuranMiniPlayer extends StatelessWidget {
           previous.repeatState.status != current.repeatState.status,
       builder: (context, state) {
         final isStation = state.activeStation != null;
-        final isAudioActive = state.audioStatus != QuranAudioStatus.idle &&
+        final isAudioActive =
+            state.audioStatus != QuranAudioStatus.idle &&
             (state.audioGlobalAyah != null || isStation);
 
         if (!isAudioActive && state.audioStatus != QuranAudioStatus.failure) {
@@ -49,8 +55,8 @@ class QuranMiniPlayer extends StatelessWidget {
 
         final QuranPoint? point =
             (state.audioGlobalAyah == null || state.data == null)
-                ? null
-                : state.data!.pointForGlobal(state.audioGlobalAyah!);
+            ? null
+            : state.data!.pointForGlobal(state.audioGlobalAyah!);
 
         final surahName = (point != null && state.data != null)
             ? state.data!.chapter(point.surah).name
@@ -61,8 +67,8 @@ class QuranMiniPlayer extends StatelessWidget {
         final subtitle = isStation
             ? state.activeStation!.subtitle
             : (point == null
-                ? 'التلاوة المباركة'
-                : 'سورة $surahName · الآية ${point.ayah}');
+                  ? 'التلاوة المباركة'
+                  : 'سورة $surahName · الآية ${point.ayah}');
 
         return Directionality(
           textDirection: TextDirection.rtl,
@@ -83,7 +89,9 @@ class QuranMiniPlayer extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.25 : 0.06,
+                      ),
                       blurRadius: 12,
                       offset: const Offset(0, -2),
                     ),
@@ -100,7 +108,9 @@ class QuranMiniPlayer extends StatelessWidget {
                           // Reciter & Ayah Details + Repeat Badge
                           Expanded(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -122,9 +132,10 @@ class QuranMiniPlayer extends StatelessWidget {
                                           title,
                                           style: theme.textTheme.labelMedium
                                               ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: theme.colorScheme.onSurface,
-                                          ),
+                                                fontWeight: FontWeight.bold,
+                                                color:
+                                                    theme.colorScheme.onSurface,
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -139,9 +150,11 @@ class QuranMiniPlayer extends StatelessWidget {
                                           subtitle,
                                           style: theme.textTheme.labelSmall
                                               ?.copyWith(
-                                            color: theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.65),
-                                          ),
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.65),
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -151,8 +164,13 @@ class QuranMiniPlayer extends StatelessWidget {
                                         _RepeatBadgeButton(
                                           config: state.repeatConfig,
                                           repeatState: state.repeatState,
-                                          onPressed: () => _showRepeatConfigSheet(
-                                              context, cubit, state),
+                                          onPressed: () =>
+                                              _showRepeatConfigSheet(
+                                                context,
+                                                cubit,
+                                                state,
+                                                playbackOrigin,
+                                              ),
                                         ),
                                       ],
                                     ],
@@ -169,14 +187,17 @@ class QuranMiniPlayer extends StatelessWidget {
                               iconSize: 22,
                               padding: const EdgeInsets.all(4),
                               constraints: const BoxConstraints(),
-                              onPressed: () =>
-                                  cubit.previousAudioAyah(autoScroll: autoScroll),
+                              onPressed: () => cubit.previousAudioAyah(
+                                autoScroll: autoScroll,
+                              ),
                               icon: const Icon(Icons.skip_previous_rounded),
                             ),
                             const SizedBox(width: 4),
                           ],
                           IconButton.filled(
-                            tooltip: isPlaying ? 'إيقاف مؤقت' : 'متابعة التلاوة',
+                            tooltip: isPlaying
+                                ? 'إيقاف مؤقت'
+                                : 'متابعة التلاوة',
                             iconSize: 24,
                             padding: const EdgeInsets.all(8),
                             constraints: const BoxConstraints(),
@@ -189,9 +210,10 @@ class QuranMiniPlayer extends StatelessWidget {
                             onPressed: isLoading
                                 ? null
                                 : () => cubit.toggleAudio(
-                                      continuous: continuous,
-                                      autoScroll: autoScroll,
-                                    ),
+                                    continuous: continuous,
+                                    autoScroll: autoScroll,
+                                    origin: playbackOrigin,
+                                  ),
                             icon: isLoading
                                 ? const SizedBox(
                                     width: 18,
@@ -230,8 +252,9 @@ class QuranMiniPlayer extends StatelessWidget {
                             onPressed: cubit.stopAudio,
                             icon: Icon(
                               Icons.close_rounded,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                           ),
                         ],
@@ -270,10 +293,11 @@ class QuranMiniPlayer extends StatelessWidget {
                               onPressed: state.audioGlobalAyah == null
                                   ? null
                                   : () => cubit.playAyah(
-                                        state.audioGlobalAyah!,
-                                        continuous: continuous,
-                                        autoScroll: autoScroll,
-                                      ),
+                                      state.audioGlobalAyah!,
+                                      continuous: continuous,
+                                      autoScroll: autoScroll,
+                                      origin: playbackOrigin,
+                                    ),
                               child: const Text('إعادة المحاولة'),
                             ),
                           ],
@@ -293,6 +317,7 @@ class QuranMiniPlayer extends StatelessWidget {
     BuildContext context,
     QuranCubit cubit,
     QuranState state,
+    QuranPlaybackOrigin playbackOrigin,
   ) {
     showModalBottomSheet<void>(
       context: context,
@@ -301,9 +326,11 @@ class QuranMiniPlayer extends StatelessWidget {
       builder: (_) => _RepeatConfigurationSheet(
         cubit: cubit,
         currentConfig: state.repeatConfig,
-        currentAyah: state.audioGlobalAyah ??
+        currentAyah:
+            state.audioGlobalAyah ??
             state.data?.page(state.currentPage).first.global ??
             1,
+        playbackOrigin: playbackOrigin,
       ),
     );
   }
@@ -351,46 +378,48 @@ class _RepeatBadgeButton extends StatelessWidget {
       message: 'إعدادات التكرار والترديد',
       child: Material(
         color: isActive
-            ? (isDark
-                ? const Color(0x334CAF50)
-                : const Color(0x1F107C41))
+            ? (isDark ? const Color(0x334CAF50) : const Color(0x1F107C41))
             : (isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.04)),
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.04)),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onPressed,
           child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.repeat_rounded,
-                size: 11,
-                color: isActive
-                    ? (isDark ? const Color(0xFF4CAF50) : const Color(0xFF107C41))
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.repeat_rounded,
+                  size: 11,
                   color: isActive
-                      ? (isDark ? const Color(0xFF4CAF50) : const Color(0xFF107C41))
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ? (isDark
+                            ? const Color(0xFF4CAF50)
+                            : const Color(0xFF107C41))
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
-              ),
-            ],
+                const SizedBox(width: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isActive
+                        ? (isDark
+                              ? const Color(0xFF4CAF50)
+                              : const Color(0xFF107C41))
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _DelayCountdownBanner extends StatelessWidget {
@@ -416,9 +445,7 @@ class _DelayCountdownBanner extends StatelessWidget {
           margin: const EdgeInsets.fromLTRB(12, 4, 12, 6),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0x2BD97706)
-                : const Color(0x1FF59E0B),
+            color: isDark ? const Color(0x2BD97706) : const Color(0x1FF59E0B),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
@@ -446,7 +473,10 @@ class _DelayCountdownBanner extends StatelessWidget {
               InkWell(
                 onTap: () => context.read<QuranCubit>().skipDelay(),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   child: Text(
                     'تخطي المهلة',
                     style: TextStyle(
@@ -473,11 +503,13 @@ class _RepeatConfigurationSheet extends StatefulWidget {
     required this.cubit,
     required this.currentConfig,
     required this.currentAyah,
+    required this.playbackOrigin,
   });
 
   final QuranCubit cubit;
   final AudioRepeatConfig currentConfig;
   final int currentAyah;
+  final QuranPlaybackOrigin playbackOrigin;
 
   @override
   State<_RepeatConfigurationSheet> createState() =>
@@ -568,9 +600,14 @@ class _RepeatConfigurationSheetState extends State<_RepeatConfigurationSheet> {
                 children: [
                   _buildModeChip(AudioRepeatMode.none, 'بدون تكرار'),
                   _buildModeChip(AudioRepeatMode.singleAyah, 'تكرار الآية'),
-                  _buildModeChip(AudioRepeatMode.rangeLoop, 'طواف المقطع كحلقة'),
                   _buildModeChip(
-                      AudioRepeatMode.perAyahRange, 'تكرار كل آية في المقطع'),
+                    AudioRepeatMode.rangeLoop,
+                    'طواف المقطع كحلقة',
+                  ),
+                  _buildModeChip(
+                    AudioRepeatMode.perAyahRange,
+                    'تكرار كل آية في المقطع',
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -650,16 +687,14 @@ class _RepeatConfigurationSheetState extends State<_RepeatConfigurationSheet> {
                       widget.cubit.startRepeatPlayback(
                         newConfig,
                         initialGlobalAyah: widget.currentAyah,
+                        origin: widget.playbackOrigin,
                       );
                     }
                     Navigator.of(context).pop();
                   },
                   child: const Text(
                     'تطبيق وبدء التلاوة',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -732,13 +767,17 @@ class _MiniPlayerProgressBar extends StatelessWidget {
       initialData: cubit.audioService.duration,
       stream: cubit.audioService.durationStream,
       builder: (context, durationSnapshot) {
-        final duration = durationSnapshot.data ?? cubit.audioService.duration ?? Duration.zero;
+        final duration =
+            durationSnapshot.data ??
+            cubit.audioService.duration ??
+            Duration.zero;
 
         return StreamBuilder<Duration>(
           initialData: cubit.audioService.currentPosition,
           stream: cubit.audioService.positionStream,
           builder: (context, positionSnapshot) {
-            final position = positionSnapshot.data ?? cubit.audioService.currentPosition;
+            final position =
+                positionSnapshot.data ?? cubit.audioService.currentPosition;
 
             final totalMs = duration.inMilliseconds;
             final currentMs = position.inMilliseconds;
@@ -792,16 +831,18 @@ class _MiniPlayerProgressBar extends StatelessWidget {
                         Text(
                           posText,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
                             fontSize: 10,
                           ),
                         ),
                         Text(
                           durText,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
                             fontSize: 10,
                           ),
                         ),

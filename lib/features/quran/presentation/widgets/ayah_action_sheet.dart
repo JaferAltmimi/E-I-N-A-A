@@ -22,16 +22,19 @@ class AyahActionSheet extends StatelessWidget {
     super.key,
     required this.ayah,
     required this.quranData,
+    this.playbackOrigin = QuranPlaybackOrigin.general,
   });
 
   final AyahBounds ayah;
   final QuranData quranData;
+  final QuranPlaybackOrigin playbackOrigin;
 
   /// Shows the [AyahActionSheet] as a modal bottom sheet.
   static Future<String?> show({
     required BuildContext context,
     required AyahBounds ayah,
     required QuranData quranData,
+    QuranPlaybackOrigin playbackOrigin = QuranPlaybackOrigin.general,
   }) {
     SettingsCubit? settingsCubit;
     try {
@@ -57,7 +60,11 @@ class AyahActionSheet extends StatelessWidget {
           if (memCubit != null) BlocProvider.value(value: memCubit),
           if (recallCubit != null) BlocProvider.value(value: recallCubit),
         ],
-        child: AyahActionSheet(ayah: ayah, quranData: quranData),
+        child: AyahActionSheet(
+          ayah: ayah,
+          quranData: quranData,
+          playbackOrigin: playbackOrigin,
+        ),
       ),
     );
   }
@@ -226,12 +233,14 @@ class AyahActionSheet extends StatelessWidget {
                                       cubit.toggleAudio(
                                         continuous: continuous,
                                         autoScroll: autoScroll,
+                                        origin: playbackOrigin,
                                       );
                                     } else {
                                       cubit.playAyah(
                                         ayah.globalAyah,
                                         continuous: continuous,
                                         autoScroll: autoScroll,
+                                        origin: playbackOrigin,
                                       );
                                     }
                                   },

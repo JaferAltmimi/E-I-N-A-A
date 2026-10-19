@@ -68,6 +68,7 @@ class QuranReaderPage extends StatefulWidget {
 
 class _QuranReaderPageState extends State<QuranReaderPage> {
   late final PageController _controller;
+  late final QuranCubit _quranCubit;
   bool _focus = false;
   bool _isPageZoomed = false;
   int? _lastKhatmaPage;
@@ -75,7 +76,8 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
   @override
   void initState() {
     super.initState();
-    int initialPage = context.read<QuranCubit>().state.currentPage - 1;
+    _quranCubit = context.read<QuranCubit>();
+    int initialPage = _quranCubit.state.currentPage - 1;
     final targetGlobal =
         widget.initialGlobalAyah ??
         (widget.visualRecallInitialQueue != null &&
@@ -102,6 +104,7 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
 
   @override
   void dispose() {
+    unawaited(_quranCubit.stopAudioIfOwnedBy(QuranPlaybackOrigin.mushaf));
     _scopedRecallCubit?.close();
     _scopedInteractionCubit?.close();
     _controller.dispose();
@@ -197,6 +200,7 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
                     context: context,
                     ayah: state.selectedAyah!,
                     quranData: quranData,
+                    playbackOrigin: QuranPlaybackOrigin.mushaf,
                   );
 
                   if (result == 'tafsir' && context.mounted) {
@@ -1122,7 +1126,9 @@ class _ReaderBottomBar extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const QuranMiniPlayer(),
+                const QuranMiniPlayer(
+                  playbackOrigin: QuranPlaybackOrigin.mushaf,
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                   child: Row(
@@ -1218,6 +1224,7 @@ class _ReaderBottomBar extends StatelessWidget {
                               : () => cubit.toggleAudio(
                                   continuous: settings.quranContinuous,
                                   autoScroll: settings.quranAutoScroll,
+                                  origin: QuranPlaybackOrigin.mushaf,
                                 ),
                           child: loading
                               ? const SizedBox.square(

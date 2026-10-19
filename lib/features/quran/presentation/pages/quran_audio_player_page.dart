@@ -114,7 +114,12 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
             ),
           ),
           // Persistent Mini Player at bottom of Audio Hub
-          const SafeArea(top: false, child: QuranMiniPlayer()),
+          const SafeArea(
+            top: false,
+            child: QuranMiniPlayer(
+              playbackOrigin: QuranPlaybackOrigin.audioPlayer,
+            ),
+          ),
         ],
       ),
     );
@@ -567,7 +572,11 @@ class _QuranAudioPlayerPageState extends State<QuranAudioPlayerPage>
                       Navigator.pop(sheetContext);
                       final global = data.globalFor(chapter.number, 1);
                       cubit.openSurah(chapter.number);
-                      cubit.playAyah(global, continuous: true);
+                      cubit.playAyah(
+                        global,
+                        continuous: true,
+                        origin: QuranPlaybackOrigin.audioPlayer,
+                      );
                     },
                   );
                 },

@@ -307,6 +307,43 @@ void main() {
       },
     );
 
+    test(
+      'Saved repeat preferences do not block normal continuous playback',
+      () async {
+        await storage.writeMap('audio_repeat_config', {
+          'mode': 'singleAyah',
+          'startGlobalAyah': 1,
+          'endGlobalAyah': 1,
+          'ayahRepeatCount': 3,
+          'rangeRepeatCount': 1,
+          'delaySeconds': 0,
+        });
+        await quranCubit.load();
+
+        await quranCubit.playAyah(4, continuous: true);
+        audioService.emitState(PlayerState(false, ProcessingState.completed));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(quranCubit.state.audioGlobalAyah, 5);
+        expect(audioService.lastGlobalAyah, 5);
+      },
+    );
+
+    test('Mushaf exit only stops playback owned by the Mushaf', () async {
+      await quranCubit.load();
+      await quranCubit.playAyah(3, origin: QuranPlaybackOrigin.audioPlayer);
+
+      await quranCubit.stopAudioIfOwnedBy(QuranPlaybackOrigin.mushaf);
+      expect(audioService.stopped, isFalse);
+      expect(quranCubit.state.audioGlobalAyah, 3);
+
+      await quranCubit.playAyah(7, origin: QuranPlaybackOrigin.mushaf);
+      await quranCubit.stopAudioIfOwnedBy(QuranPlaybackOrigin.mushaf);
+      expect(audioService.stopped, isTrue);
+      expect(quranCubit.state.audioStatus, QuranAudioStatus.idle);
+      expect(quranCubit.state.audioGlobalAyah, isNull);
+    });
+
     test('Transient idle while loading the next Ayah does not stop continuous playback', () async {
       await quranCubit.load();
       await quranCubit.playAyah(1, continuous: true);

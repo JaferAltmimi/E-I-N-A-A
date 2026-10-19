@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/mishkat_widgets.dart';
+import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../data/models/memorization_plan.dart';
 import '../../data/models/quran_models.dart';
 import '../cubit/quran_memorization_cubit.dart';
@@ -68,6 +69,11 @@ class _MemorizationPlanPageState extends State<MemorizationPlanPage> {
       final chapter = widget.quranData.chapter(_selectedSurah);
       _customRange = _startAyah != 1 || _endAyah != chapter.ayahs.length;
       _titleController = TextEditingController(text: plan.title);
+      _reminderEnabled = plan.reminderHour != null;
+      _reminderTime = TimeOfDay(
+        hour: plan.reminderHour ?? 7,
+        minute: plan.reminderMinute ?? 0,
+      );
     } else {
       _selectedSurah = 1;
       final chapter = widget.quranData.chapter(_selectedSurah);
@@ -139,6 +145,14 @@ class _MemorizationPlanPageState extends State<MemorizationPlanPage> {
       final endGlobal = chapter.globalStart + _endAyah - 1;
       final cubit = context.read<QuranMemorizationCubit>();
       final plan = widget.existingPlan;
+      final reminder = _reminderEnabled ? _reminderTime : null;
+
+      if (reminder != null) {
+        final settings = context.read<SettingsCubit>();
+        if (!settings.state.settings.notificationsEnabled) {
+          await settings.setNotificationsEnabled(true);
+        }
+      }
 
       if (plan == null) {
         await cubit.createPlan(
@@ -147,7 +161,7 @@ class _MemorizationPlanPageState extends State<MemorizationPlanPage> {
           startGlobalAyah: startGlobal,
           endGlobalAyah: endGlobal,
           dailyTarget: _dailyTarget,
-          reminderTime: _reminderEnabled ? _reminderTime : null,
+          reminderTime: reminder,
         );
       } else {
         await cubit.updatePlan(
@@ -157,6 +171,9 @@ class _MemorizationPlanPageState extends State<MemorizationPlanPage> {
             startGlobalAyah: startGlobal,
             endGlobalAyah: endGlobal,
             dailyTarget: _dailyTarget,
+            reminderHour: reminder?.hour,
+            reminderMinute: reminder?.minute,
+            clearReminder: reminder == null,
           ),
         );
       }

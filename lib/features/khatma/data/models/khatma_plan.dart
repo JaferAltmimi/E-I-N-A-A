@@ -15,6 +15,8 @@ class KhatmaPlan extends Equatable {
     required this.progressPage,
     required this.status,
     required this.createdAt,
+    this.lastReadPage,
+    this.currentWardEndPage,
     this.reminderPrayer,
     this.pausedAt,
     this.completedAt,
@@ -27,6 +29,8 @@ class KhatmaPlan extends Equatable {
   final DateTime startDate;
   final int startPage;
   final int progressPage;
+  final int? lastReadPage;
+  final int? currentWardEndPage;
   final KhatmaStatus status;
   final String? reminderPrayer;
   final DateTime createdAt;
@@ -36,8 +40,16 @@ class KhatmaPlan extends Equatable {
   int get totalPages => 604 - startPage + 1;
   int get completedPages => math.max(0, progressPage - startPage + 1);
   int get nextPage => math.min(604, math.max(startPage, progressPage + 1));
-  int get todayEnd =>
-      math.min(604, math.max(progressPage, nextPage + dailyPages - 1));
+  int get resumePage =>
+      math.min(604, math.max(nextPage, lastReadPage ?? nextPage));
+  int get todayEnd {
+    final savedTarget = currentWardEndPage;
+    if (savedTarget != null && savedTarget >= nextPage) {
+      return savedTarget.clamp(nextPage, 604).toInt();
+    }
+    return math.min(604, math.max(progressPage, nextPage + dailyPages - 1));
+  }
+
   double get progress => (completedPages / totalPages).clamp(0, 1);
   int get remainingPages => math.max(0, 604 - progressPage);
   int get remainingDays => (remainingPages / dailyPages).ceil();
@@ -61,6 +73,8 @@ class KhatmaPlan extends Equatable {
         DateTime.tryParse(json['startDate'] as String? ?? '') ?? DateTime.now(),
     startPage: (json['startPage'] as num?)?.toInt() ?? 1,
     progressPage: (json['progressPage'] as num?)?.toInt() ?? 0,
+    lastReadPage: (json['lastReadPage'] as num?)?.toInt(),
+    currentWardEndPage: (json['currentWardEndPage'] as num?)?.toInt(),
     status: KhatmaStatus.values.firstWhere(
       (item) => item.name == json['status'],
       orElse: () => KhatmaStatus.active,
@@ -80,6 +94,8 @@ class KhatmaPlan extends Equatable {
     'startDate': startDate.toIso8601String(),
     'startPage': startPage,
     'progressPage': progressPage,
+    'lastReadPage': lastReadPage,
+    'currentWardEndPage': currentWardEndPage,
     'status': status.name,
     'reminderPrayer': reminderPrayer,
     'createdAt': createdAt.toIso8601String(),
@@ -92,6 +108,8 @@ class KhatmaPlan extends Equatable {
     int? durationDays,
     int? dailyPages,
     int? progressPage,
+    Object? lastReadPage = _unset,
+    Object? currentWardEndPage = _unset,
     KhatmaStatus? status,
     Object? reminderPrayer = _unset,
     Object? pausedAt = _unset,
@@ -104,6 +122,12 @@ class KhatmaPlan extends Equatable {
     startDate: startDate,
     startPage: startPage,
     progressPage: progressPage ?? this.progressPage,
+    lastReadPage: identical(lastReadPage, _unset)
+        ? this.lastReadPage
+        : lastReadPage as int?,
+    currentWardEndPage: identical(currentWardEndPage, _unset)
+        ? this.currentWardEndPage
+        : currentWardEndPage as int?,
     status: status ?? this.status,
     reminderPrayer: identical(reminderPrayer, _unset)
         ? this.reminderPrayer
@@ -126,6 +150,8 @@ class KhatmaPlan extends Equatable {
     startDate,
     startPage,
     progressPage,
+    lastReadPage,
+    currentWardEndPage,
     status,
     reminderPrayer,
     createdAt,

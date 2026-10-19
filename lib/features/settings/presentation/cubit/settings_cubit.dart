@@ -6,8 +6,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/services/local_notification_service.dart';
 import '../../../../core/services/local_storage_service.dart';
 import '../../../../core/services/location_service.dart';
-import '../../../prayer_times/data/services/prayer_calculator.dart';
 import '../../data/models/app_settings.dart';
+import '../../data/services/notification_schedule_planner.dart';
 import 'settings_state.dart';
 
 class SettingsCubit extends Cubit<SettingsState> {
@@ -20,7 +20,6 @@ class SettingsCubit extends Cubit<SettingsState> {
   final LocalStorageService _storage;
   final LocationService _locationService;
   final LocalNotificationService _notifications;
-  final PrayerCalculator _calculator = const PrayerCalculator();
 
   Future<void> load() async {
     final settings = AppSettings.fromJson(_storage.readMap('settings'));
@@ -196,94 +195,9 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   Future<void> rescheduleNotifications(AppSettings settings) async {
-    if (!settings.notificationsEnabled || !settings.hasLocation) return;
-    final now = DateTime.now();
-    final items = <ScheduledAppNotification>[];
-    var id = 1000;
-    for (var day = 0; day < 7; day++) {
-      final date = now.add(Duration(days: day));
-      final times = _calculator.calculate(
-        date: date,
-        latitude: settings.latitude!,
-        longitude: settings.longitude!,
-        methodKey: settings.method,
-        methodAuto: !settings.methodSet,
-        asr: settings.asr,
-        highLatitudes: settings.highLatitudes,
-        tune: settings.tune,
-      );
-      for (final prayer in PrayerCalculator.order.where(
-        (item) => !item.noAdhan,
-      )) {
-        final at = times[prayer.key];
-        if (at == null ||
-            !at.isAfter(now) ||
-            settings.prayerNotifications[prayer.key] != true) {
-          continue;
-        }
-        if (settings.preMinutes > 0) {
-          final reminderAt = at.subtract(
-            Duration(minutes: settings.preMinutes),
-          );
-          if (reminderAt.isAfter(now)) {
-            items.add(
-              ScheduledAppNotification(
-                id: id++,
-                title: 'اقتربت صلاة ${prayer.name}',
-                body: 'بقي ${settings.preMinutes} دقيقة على الأذان.',
-                at: reminderAt,
-                payload: 'prayer:${prayer.key}:pre',
-                sound: settings.adhanSound,
-                vibrate: settings.vibrate,
-              ),
-            );
-          }
-        }
-        items.add(
-          ScheduledAppNotification(
-            id: id++,
-            title: 'حان الآن موعد صلاة ${prayer.name}',
-            body: 'حيّ على الصلاة — تقبّل الله طاعتك.',
-            at: at,
-            payload: 'prayer:${prayer.key}',
-            sound: settings.adhanSound,
-            vibrate: settings.vibrate,
-            soundName: settings.adhanSound ? settings.adhanFile : null,
-          ),
-        );
-      }
-      if (settings.adhkarNotifications) {
-        final morning = times['sunrise']?.add(const Duration(minutes: 30));
-        final evening = times['asr']?.add(const Duration(minutes: 30));
-        if (morning != null && morning.isAfter(now)) {
-          items.add(
-            ScheduledAppNotification(
-              id: id++,
-              title: 'أذكار الصباح',
-              body: 'ابدأ يومك بذكر الله.',
-              at: morning,
-              payload: 'adhkar:morning',
-              sound: settings.adhanSound,
-              vibrate: settings.vibrate,
-            ),
-          );
-        }
-        if (evening != null && evening.isAfter(now)) {
-          items.add(
-            ScheduledAppNotification(
-              id: id++,
-              title: 'أذكار المساء',
-              body: 'آن أوان ورد المساء.',
-              at: evening,
-              payload: 'adhkar:evening',
-              sound: settings.adhanSound,
-              vibrate: settings.vibrate,
-            ),
-          );
-        }
-      }
-    }
-    items.sort((a, b) => a.at.compareTo(b.at));
-    await _notifications.scheduleAll(items);
+    if (!settings.notificationsEnabled) return;
+    await _notifications.scheduleAll(
+      NotificationSchedulePlanner.build(storage: _storage, settings: settings),
+    );
   }
 }

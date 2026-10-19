@@ -97,6 +97,48 @@ void main() {
     await cubit.close();
   });
 
+  test('khatma reading position and live progress survive a reload', () async {
+    final storage = _MemoryStorage();
+    final first = KhatmaCubit(storage);
+    await first.create(name: 'ختمتي التفاعلية', durationDays: 30, startPage: 1);
+    final planId = first.state.active!.id;
+
+    await first.recordReadingPosition(planId: planId, currentPage: 1);
+    await first.recordReadingPosition(
+      planId: planId,
+      currentPage: 2,
+      completedThrough: 1,
+    );
+
+    expect(first.state.active?.progressPage, 1);
+    expect(first.state.active?.completedPages, 1);
+    expect(first.state.active?.lastReadPage, 2);
+    expect(first.state.active?.resumePage, 2);
+    expect(first.state.active?.todayEnd, 21);
+    await first.close();
+
+    final restored = KhatmaCubit(storage);
+    expect(restored.state.active?.progressPage, 1);
+    expect(restored.state.active?.lastReadPage, 2);
+    expect(restored.state.active?.resumePage, 2);
+    expect(restored.state.active?.todayEnd, 21);
+
+    // Opening an arbitrary page saves the position without falsely counting
+    // skipped pages as completed.
+    await restored.recordReadingPosition(planId: planId, currentPage: 10);
+    expect(restored.state.active?.progressPage, 1);
+    expect(restored.state.active?.lastReadPage, 10);
+
+    await restored.recordReadingPosition(
+      planId: planId,
+      currentPage: 21,
+      completedThrough: 21,
+    );
+    expect(restored.state.active?.nextPage, 22);
+    expect(restored.state.active?.todayEnd, 42);
+    await restored.close();
+  });
+
   testWidgets('library overview remains usable on a narrow phone', (
     tester,
   ) async {

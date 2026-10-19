@@ -9,6 +9,7 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/mishkat_widgets.dart';
 import '../../../quran/presentation/cubit/quran_cubit.dart';
 import '../../../quran/presentation/pages/quran_reader_page.dart';
+import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../data/models/khatma_plan.dart';
 import '../cubit/khatma_cubit.dart';
 import '../cubit/khatma_state.dart';
@@ -309,6 +310,13 @@ class KhatmaPage extends StatelessWidget {
       ),
     );
     if (create == true && context.mounted) {
+      if (reminder != null) {
+        final settings = context.read<SettingsCubit>();
+        if (!settings.state.settings.notificationsEnabled) {
+          await settings.setNotificationsEnabled(true);
+        }
+      }
+      if (!context.mounted) return;
       await context.read<KhatmaCubit>().create(
         name: name.text,
         durationDays: duration,
@@ -384,6 +392,28 @@ class _ActivePlanCard extends StatelessWidget {
             color: context.mishkat.primary,
           ),
         ),
+        const SizedBox(height: MishkatSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'أتممت ${plan.completedPages} من ${plan.totalPages} صفحة',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: context.mishkat.primary,
+                ),
+              ),
+            ),
+            Text(
+              'متبقي ${plan.remainingPages}',
+              style: TextStyle(
+                fontSize: 12,
+                color: context.mishkat.textSecondary,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: MishkatSpacing.lg),
         Row(
           children: [
@@ -425,7 +455,7 @@ class _ActivePlanCard extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                'من صفحة ${plan.nextPage} إلى ${plan.todayEnd}',
+                'من صفحة ${plan.resumePage} إلى ${plan.todayEnd}',
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
@@ -448,7 +478,7 @@ class _ActivePlanCard extends StatelessWidget {
               ? null
               : () => _openReader(context),
           icon: const Icon(Icons.menu_book_rounded),
-          label: 'ابدأ ورد اليوم',
+          label: plan.completedPages == 0 ? 'ابدأ ورد اليوم' : 'تابع ورد اليوم',
           isFullWidth: true,
         ),
         const SizedBox(height: MishkatSpacing.sm),
@@ -481,11 +511,26 @@ class _ActivePlanCard extends StatelessWidget {
   );
 
   Future<void> _openReader(BuildContext context) async {
-    await context.read<QuranCubit>().openPage(plan.nextPage);
+    final startPage = plan.resumePage
+        .clamp(plan.nextPage, plan.todayEnd)
+        .toInt();
+    await context.read<KhatmaCubit>().recordReadingPosition(
+      planId: plan.id,
+      currentPage: startPage,
+    );
+    if (!context.mounted) return;
+    await context.read<QuranCubit>().openPage(startPage);
     if (context.mounted) {
       await Navigator.push(
         context,
-        MaterialPageRoute<void>(builder: (_) => const QuranReaderPage()),
+        MaterialPageRoute<void>(
+          builder: (_) => QuranReaderPage(
+            khatmaPlanId: plan.id,
+            khatmaPlanName: plan.name,
+            khatmaStartPage: startPage,
+            khatmaTargetPage: plan.todayEnd,
+          ),
+        ),
       );
     }
   }
@@ -520,7 +565,9 @@ class _KhatmaOfflineAction extends StatelessWidget {
                   await controller.downloadPages(
                     reciter: reciter,
                     data: data,
-                    startPage: plan.nextPage,
+                    startPage: plan.resumePage
+                        .clamp(plan.nextPage, plan.todayEnd)
+                        .toInt(),
                     endPage: plan.todayEnd,
                     label: 'ورد ${plan.name} اليوم',
                   );

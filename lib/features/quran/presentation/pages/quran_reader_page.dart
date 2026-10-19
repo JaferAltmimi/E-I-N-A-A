@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,6 +8,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../khatma/data/models/khatma_plan.dart';
+import '../../../khatma/presentation/cubit/khatma_cubit.dart';
+import '../../../khatma/presentation/cubit/khatma_state.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../../settings/presentation/cubit/settings_state.dart';
 import '../../data/models/mushaf_layout_models.dart';
@@ -41,12 +47,20 @@ class QuranReaderPage extends StatefulWidget {
     this.visualRecallInitialQueue,
     this.visualRecallPlanId,
     this.startRangeSelection,
+    this.khatmaPlanId,
+    this.khatmaPlanName,
+    this.khatmaStartPage,
+    this.khatmaTargetPage,
   });
 
   final int? initialGlobalAyah;
   final List<int>? visualRecallInitialQueue;
   final String? visualRecallPlanId;
   final bool? startRangeSelection;
+  final String? khatmaPlanId;
+  final String? khatmaPlanName;
+  final int? khatmaStartPage;
+  final int? khatmaTargetPage;
 
   @override
   State<QuranReaderPage> createState() => _QuranReaderPageState();
@@ -56,6 +70,7 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
   late final PageController _controller;
   bool _focus = false;
   bool _isPageZoomed = false;
+  int? _lastKhatmaPage;
 
   @override
   void initState() {
@@ -77,6 +92,9 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
       }
     }
     _controller = PageController(initialPage: initialPage);
+    if (widget.khatmaPlanId != null) {
+      _lastKhatmaPage = initialPage + 1;
+    }
   }
 
   QuranVisualRecallCubit? _scopedRecallCubit;
@@ -374,6 +392,7 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
                           itemCount: 604,
                           onPageChanged: (index) {
                             final page = index + 1;
+                            _trackKhatmaPage(context, page);
                             final recall = _tryGetVisualRecallCubit(context);
                             final isRecallActive =
                                 recall != null &&
@@ -478,11 +497,71 @@ class _QuranReaderPageState extends State<QuranReaderPage> {
               recallState.isCompleted) {
             return VisualRecallBottomBar(cubit: recallCubit);
           }
-          return _ReaderBottomBar(onOptions: () => _showOptions(context));
+          return _buildRegularBottomBar(context);
         },
       );
     }
-    return _ReaderBottomBar(onOptions: () => _showOptions(context));
+    return _buildRegularBottomBar(context);
+  }
+
+  Widget _buildRegularBottomBar(BuildContext context) {
+    final readerBar = _ReaderBottomBar(onOptions: () => _showOptions(context));
+    final planId = widget.khatmaPlanId;
+    final startPage = widget.khatmaStartPage;
+    final targetPage = widget.khatmaTargetPage;
+    if (planId == null || startPage == null || targetPage == null) {
+      return readerBar;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BlocBuilder<KhatmaCubit, KhatmaState>(
+          buildWhen: (previous, current) => previous.plans != current.plans,
+          builder: (context, khatmaState) {
+            final plan = khatmaState.plans
+                .where((item) => item.id == planId)
+                .firstOrNull;
+            if (plan == null) return const SizedBox.shrink();
+            return BlocBuilder<QuranCubit, QuranState>(
+              buildWhen: (previous, current) =>
+                  previous.currentPage != current.currentPage,
+              builder: (context, quranState) => _KhatmaReaderProgressBar(
+                plan: plan,
+                planName: widget.khatmaPlanName ?? plan.name,
+                startPage: startPage,
+                targetPage: targetPage,
+                currentPage: quranState.currentPage,
+              ),
+            );
+          },
+        ),
+        readerBar,
+      ],
+    );
+  }
+
+  void _trackKhatmaPage(BuildContext context, int page) {
+    final planId = widget.khatmaPlanId;
+    final startPage = widget.khatmaStartPage;
+    final targetPage = widget.khatmaTargetPage;
+    if (planId == null || startPage == null || targetPage == null) return;
+
+    final previousPage = _lastKhatmaPage;
+    _lastKhatmaPage = page;
+    final isSequentialForward =
+        previousPage != null &&
+        page == previousPage + 1 &&
+        previousPage >= startPage &&
+        previousPage <= targetPage;
+    final savedPage = page.clamp(startPage, targetPage).toInt();
+    unawaited(
+      context.read<KhatmaCubit>().recordReadingPosition(
+        planId: planId,
+        currentPage: savedPage,
+        completedThrough: isSequentialForward ? previousPage : null,
+      ),
+    );
   }
 
   int _juzFor(QuranData data, int global) {
@@ -892,6 +971,116 @@ class _MushafPageState extends State<_MushafPage> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _KhatmaReaderProgressBar extends StatelessWidget {
+  const _KhatmaReaderProgressBar({
+    required this.plan,
+    required this.planName,
+    required this.startPage,
+    required this.targetPage,
+    required this.currentPage,
+  });
+
+  final KhatmaPlan plan;
+  final String planName;
+  final int startPage;
+  final int targetPage;
+  final int currentPage;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    final total = math.max(1, targetPage - startPage + 1);
+    final completed = (math.min(plan.progressPage, targetPage) - startPage + 1)
+        .clamp(0, total);
+    final effectivePage = currentPage.clamp(startPage, targetPage).toInt();
+    final atTarget = effectivePage >= targetPage;
+    final currentSaved = plan.progressPage >= effectivePage;
+    final wardCompleted = plan.progressPage >= targetPage;
+
+    return Material(
+      color: colors.primarySoft,
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 9, 14, 9),
+          child: Row(
+            children: [
+              Icon(Icons.route_rounded, size: 21, color: colors.primary),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ورد $planName · $completed من $total صفحة',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(MishkatRadius.pill),
+                      child: LinearProgressIndicator(
+                        value: completed / total,
+                        minHeight: 4,
+                        backgroundColor: colors.surface,
+                        color: colors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 8,
+                  ),
+                ),
+                onPressed: plan.status != KhatmaStatus.active || currentSaved
+                    ? null
+                    : () async {
+                        await context.read<KhatmaCubit>().completeReadingPage(
+                          planId: plan.id,
+                          page: effectivePage,
+                        );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              atTarget
+                                  ? 'تم تسجيل وردك اليوم — تقبّل الله منك.'
+                                  : 'تم حفظ القراءة حتى صفحة $effectivePage.',
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: Text(
+                  wardCompleted
+                      ? 'تم الورد'
+                      : currentSaved
+                      ? 'محفوظ'
+                      : atTarget
+                      ? 'إتمام الورد'
+                      : 'أتممت الصفحة',
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

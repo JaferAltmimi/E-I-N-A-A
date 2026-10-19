@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/services/local_notification_service.dart';
+import '../../../settings/data/models/app_settings.dart';
+import '../../../settings/data/services/notification_schedule_planner.dart';
 import '../../data/models/hifz_planning_models.dart';
 import '../../data/models/memorization_item.dart';
 import '../../data/models/memorization_plan.dart';
@@ -17,10 +19,8 @@ import 'quran_memorization_state.dart';
 /// Authoritative Cubit managing Quran memorization plans, mastery progress,
 /// recall sessions, revision queues, and adaptive Muraja'ah scheduling.
 class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
-  QuranMemorizationCubit({
-    required this.repository,
-    this.notificationService,
-  }) : super(const QuranMemorizationState());
+  QuranMemorizationCubit({required this.repository, this.notificationService})
+    : super(const QuranMemorizationState());
 
   final QuranMemorizationRepository repository;
   final LocalNotificationService? notificationService;
@@ -28,28 +28,32 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   static const int reminderNotificationId = 800001;
   static const int murajaahReminderNotificationId = 800002;
   static const AdaptiveMurajaahEngine engine = AdaptiveMurajaahEngine();
-  final Map<String, Completer<void>> _inFlightOperations = <String, Completer<void>>{};
+  final Map<String, Completer<void>> _inFlightOperations =
+      <String, Completer<void>>{};
 
   /// Loads all memorization data from local-first storage.
   Future<void> load() async {
-    emit(state.copyWith(
-      status: QuranMemorizationStatus.loading,
-      clearError: true,
-    ));
+    emit(
+      state.copyWith(status: QuranMemorizationStatus.loading, clearError: true),
+    );
     try {
       final data = await repository.loadData();
-      emit(state.copyWith(
-        status: QuranMemorizationStatus.ready,
-        plans: data.plans,
-        items: data.items,
-        activeSession: data.sessionResume,
-        history: data.history,
-      ));
+      emit(
+        state.copyWith(
+          status: QuranMemorizationStatus.ready,
+          plans: data.plans,
+          items: data.items,
+          activeSession: data.sessionResume,
+          history: data.history,
+        ),
+      );
     } on Object catch (e) {
-      emit(state.copyWith(
-        status: QuranMemorizationStatus.failure,
-        error: 'تعذّر تحميل بيانات الحفظ: $e',
-      ));
+      emit(
+        state.copyWith(
+          status: QuranMemorizationStatus.failure,
+          error: 'تعذّر تحميل بيانات الحفظ: $e',
+        ),
+      );
     }
   }
 
@@ -77,6 +81,8 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
       dailyTarget: safeDaily,
       isActive: makeActive,
       createdAt: DateTime.now(),
+      reminderHour: reminderTime?.hour,
+      reminderMinute: reminderTime?.minute,
     );
 
     final updatedPlans = state.plans.map((p) {
@@ -91,9 +97,7 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
     emit(state.copyWith(plans: updatedPlans));
     await _persist();
 
-    if (reminderTime != null) {
-      await scheduleDailyReminder(time: reminderTime);
-    }
+    await _refreshNotificationCalendar();
 
     return plan;
   }
@@ -111,6 +115,7 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
 
     emit(state.copyWith(plans: updatedPlans));
     await _persist();
+    await _refreshNotificationCalendar();
   }
 
   /// Pauses an active plan.
@@ -124,6 +129,7 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
 
     emit(state.copyWith(plans: updatedPlans));
     await _persist();
+    await _refreshNotificationCalendar();
   }
 
   /// Resumes a plan as the primary active plan.
@@ -139,6 +145,7 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
 
     emit(state.copyWith(plans: updatedPlans));
     await _persist();
+    await _refreshNotificationCalendar();
   }
 
   /// Deletes a plan permanently.
@@ -149,12 +156,15 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
       session = null;
     }
 
-    emit(state.copyWith(
-      plans: updatedPlans,
-      activeSession: session,
-      clearActiveSession: session == null,
-    ));
+    emit(
+      state.copyWith(
+        plans: updatedPlans,
+        activeSession: session,
+        clearActiveSession: session == null,
+      ),
+    );
     await _persist();
+    await _refreshNotificationCalendar();
   }
 
   /// Starts or resumes a memorization session.
@@ -163,7 +173,8 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
     List<int>? customQueue,
   }) {
     final targetPlan = plan ?? state.activePlan;
-    final queue = customQueue ??
+    final queue =
+        customQueue ??
         (targetPlan != null
             ? state.todayTargetAyahs(targetPlan)
             : const <int>[]);
@@ -184,10 +195,7 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   }
 
   /// Starts a targeted revision session using standard 4-tier queue or custom queue.
-  void startRevisionSession({
-    List<int>? customQueue,
-    int limit = 15,
-  }) {
+  void startRevisionSession({List<int>? customQueue, int limit = 15}) {
     final queue = customQueue ?? state.generateRevisionQueue(limit: limit);
     if (queue.isEmpty) return;
 
@@ -209,7 +217,8 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
     int limit = 15,
     List<int>? customQueue,
   }) {
-    final queue = customQueue ??
+    final queue =
+        customQueue ??
         state.generateAdaptiveQueue(category: category, limit: limit);
     if (queue.isEmpty) return;
 
@@ -231,7 +240,9 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
     int? manualTargetOverride,
   }) {
     final effectiveJourney = manualTargetOverride != null
-        ? state.calculateDailyJourney(manualTargetOverride: manualTargetOverride)
+        ? state.calculateDailyJourney(
+            manualTargetOverride: manualTargetOverride,
+          )
         : journey;
 
     final queue = effectiveJourney.allAyahs;
@@ -253,11 +264,15 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   }
 
   /// Starts a targeted session for a specific segment of the daily journey.
-  void startJourneySegmentSession(HifzJourneySegment segment, {String? planId}) {
+  void startJourneySegmentSession(
+    HifzJourneySegment segment, {
+    String? planId,
+  }) {
     if (segment.queue.isEmpty) return;
 
     final session = MemorizationSession(
-      planId: planId ??
+      planId:
+          planId ??
           (segment.type == HifzJourneySegmentType.newHifz
               ? state.activePlan?.id
               : null),
@@ -291,18 +306,18 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   void toggleTextHidden() {
     final session = state.activeSession;
     if (session == null) return;
-    emit(state.copyWith(
-      activeSession: session.copyWith(isTextHidden: !session.isTextHidden),
-    ));
+    emit(
+      state.copyWith(
+        activeSession: session.copyWith(isTextHidden: !session.isTextHidden),
+      ),
+    );
   }
 
   /// Explicitly reveals the text for the current session item.
   void revealText() {
     final session = state.activeSession;
     if (session == null || !session.isTextHidden) return;
-    emit(state.copyWith(
-      activeSession: session.copyWith(isTextHidden: false),
-    ));
+    emit(state.copyWith(activeSession: session.copyWith(isTextHidden: false)));
   }
 
   /// Records an adaptive review outcome (easy, good, difficult, failed).
@@ -320,7 +335,8 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
     final safeGlobal = globalAyah.clamp(1, 6236);
     final current = now ?? DateTime.now();
     final effectiveSessionId = sessionId ?? state.activeSession?.id;
-    final effectiveOperationId = operationId ??
+    final effectiveOperationId =
+        operationId ??
         (effectiveSessionId != null
             ? 'rev_${effectiveSessionId}_$safeGlobal'
             : 'rev_${current.millisecondsSinceEpoch}_$safeGlobal');
@@ -339,19 +355,25 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
       final session = state.activeSession;
 
       // 2. Idempotency ledger check: if this operation was already recorded, return safely
-      final isDuplicate = state.history.any((r) =>
-          r.id == effectiveOperationId ||
-          (effectiveSessionId != null && r.sessionId == effectiveSessionId && r.globalAyah == safeGlobal));
+      final isDuplicate = state.history.any(
+        (r) =>
+            r.id == effectiveOperationId ||
+            (effectiveSessionId != null &&
+                r.sessionId == effectiveSessionId &&
+                r.globalAyah == safeGlobal),
+      );
 
       if (isDuplicate) {
         if (session != null && session.currentGlobalAyah == safeGlobal) {
-          emit(state.copyWith(
-            activeSession: session.copyWith(
-              currentIndex: session.currentIndex + 1,
-              isTextHidden: true,
-              completedCount: session.completedCount + 1,
+          emit(
+            state.copyWith(
+              activeSession: session.copyWith(
+                currentIndex: session.currentIndex + 1,
+                isTextHidden: true,
+                completedCount: session.completedCount + 1,
+              ),
             ),
-          ));
+          );
         }
         completer.complete();
         return;
@@ -368,9 +390,10 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
 
       // 4. Compute updated mistakes and status
       final mistakeDelta =
-          (outcome == ReviewOutcome.difficult || outcome == ReviewOutcome.failed)
-              ? 1
-              : 0;
+          (outcome == ReviewOutcome.difficult ||
+              outcome == ReviewOutcome.failed)
+          ? 1
+          : 0;
       final newMistakeCount = currentItem.mistakeCount + mistakeDelta;
       final resultingStatus = outcome.resultingStatus;
 
@@ -420,7 +443,9 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
       // 7. Check if the associated plan is now completely memorized
       var updatedPlans = state.plans;
       if (effectivePlanId != null) {
-        final planIndex = updatedPlans.indexWhere((p) => p.id == effectivePlanId);
+        final planIndex = updatedPlans.indexWhere(
+          (p) => p.id == effectivePlanId,
+        );
         if (planIndex != -1) {
           final plan = updatedPlans[planIndex];
           var allMemorized = true;
@@ -443,22 +468,24 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
       }
 
       final previousState = state;
-      emit(state.copyWith(
-        items: updatedItems,
-        history: updatedHistory,
-        activeSession: updatedSession,
-        plans: updatedPlans,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          items: updatedItems,
+          history: updatedHistory,
+          activeSession: updatedSession,
+          plans: updatedPlans,
+          clearError: true,
+        ),
+      );
 
       try {
         await _persist();
         completer.complete();
       } catch (e, st) {
         // Rollback in-memory state on persistence failure so memory does not diverge from disk
-        emit(previousState.copyWith(
-          error: 'تعذر حفظ نتيجة التسميع على القرص: $e',
-        ));
+        emit(
+          previousState.copyWith(error: 'تعذر حفظ نتيجة التسميع على القرص: $e'),
+        );
         completer.completeError(e, st);
         rethrow;
       }
@@ -497,12 +524,14 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   void advanceSession() {
     final session = state.activeSession;
     if (session == null || session.isFinished) return;
-    emit(state.copyWith(
-      activeSession: session.copyWith(
-        currentIndex: session.currentIndex + 1,
-        isTextHidden: true,
+    emit(
+      state.copyWith(
+        activeSession: session.copyWith(
+          currentIndex: session.currentIndex + 1,
+          isTextHidden: true,
+        ),
       ),
-    ));
+    );
     _persist();
   }
 
@@ -510,12 +539,14 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   void previousSessionAyah() {
     final session = state.activeSession;
     if (session == null || session.currentIndex <= 0) return;
-    emit(state.copyWith(
-      activeSession: session.copyWith(
-        currentIndex: session.currentIndex - 1,
-        isTextHidden: true,
+    emit(
+      state.copyWith(
+        activeSession: session.copyWith(
+          currentIndex: session.currentIndex - 1,
+          isTextHidden: true,
+        ),
       ),
-    ));
+    );
     _persist();
   }
 
@@ -555,8 +586,13 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   }) async {
     if (notificationService == null) return;
     final now = DateTime.now();
-    var scheduled =
-        DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    var scheduled = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
     if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
@@ -567,6 +603,9 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
         title: title,
         body: body,
         at: scheduled,
+        payload: 'memorization',
+        repeatsDaily: true,
+        kind: AppNotificationKind.memorization,
       ),
     ];
     await notificationService!.scheduleAll(notifications);
@@ -580,8 +619,13 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
   }) async {
     if (notificationService == null) return;
     final now = DateTime.now();
-    var scheduled =
-        DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    var scheduled = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
     if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
@@ -592,6 +636,9 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
         title: title,
         body: body,
         at: scheduled,
+        payload: 'memorization:review',
+        repeatsDaily: true,
+        kind: AppNotificationKind.memorization,
       ),
     ];
     await notificationService!.scheduleAll(notifications);
@@ -599,13 +646,39 @@ class QuranMemorizationCubit extends Cubit<QuranMemorizationState> {
 
   /// Cancels scheduled memorization reminder.
   Future<void> cancelDailyReminder() async {
-    // Handled locally or through notification service
+    if (notificationService == null) return;
+    await notificationService!.scheduleAll([
+      ScheduledAppNotification(
+        id: reminderNotificationId,
+        title: '',
+        body: '',
+        at: DateTime.fromMillisecondsSinceEpoch(0),
+        sound: false,
+        vibrate: false,
+        kind: AppNotificationKind.memorization,
+      ),
+    ]);
+  }
+
+  Future<void> _refreshNotificationCalendar() async {
+    final service = notificationService;
+    if (service == null) return;
+    final settings = AppSettings.fromJson(
+      repository.storage.readMap('settings'),
+    );
+    if (!settings.notificationsEnabled) return;
+    await service.scheduleAll(
+      NotificationSchedulePlanner.build(
+        storage: repository.storage,
+        settings: settings,
+      ),
+    );
   }
 
   Future<void> _persist() => repository.saveData(
-        plans: state.plans,
-        items: state.items,
-        session: state.activeSession,
-        history: state.history,
-      );
+    plans: state.plans,
+    items: state.items,
+    session: state.activeSession,
+    history: state.history,
+  );
 }

@@ -2,15 +2,24 @@ import 'dart:math' as math;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/services/local_notification_service.dart';
 import '../../../../core/services/local_storage_service.dart';
+import '../../../settings/data/models/app_settings.dart';
+import '../../../settings/data/services/notification_schedule_planner.dart';
 import '../../data/models/khatma_plan.dart';
 import 'khatma_state.dart';
 
 class KhatmaCubit extends Cubit<KhatmaState> {
-  KhatmaCubit(this._storage) : super(const KhatmaState()) {
+  // A named public argument is clearer at composition sites than exposing the
+  // private field name as an initializing formal.
+  KhatmaCubit(this._storage, {LocalNotificationService? notifications})
+    // ignore: prefer_initializing_formals
+    : _notifications = notifications,
+      super(const KhatmaState()) {
     load();
   }
   final LocalStorageService _storage;
+  final LocalNotificationService? _notifications;
 
   void load() {
     final saved = _storage.readMap('khatma');
@@ -38,20 +47,24 @@ class KhatmaCubit extends Cubit<KhatmaState> {
   }) async {
     final safeStart = startPage.clamp(1, 604);
     final duration = durationDays.clamp(1, 3650);
+    final daily = ((604 - safeStart + 1) / duration).ceil().clamp(1, 604);
     final plan = KhatmaPlan(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       name: name.trim().isEmpty ? 'ختمتي' : name.trim(),
       durationDays: duration,
-      dailyPages: ((604 - safeStart + 1) / duration).ceil().clamp(1, 604),
+      dailyPages: daily,
       startDate: DateTime.now(),
       startPage: safeStart,
       progressPage: safeStart - 1,
+      lastReadPage: safeStart,
+      currentWardEndPage: math.min(604, safeStart + daily - 1),
       status: KhatmaStatus.active,
       reminderPrayer: reminderPrayer,
       createdAt: DateTime.now(),
     );
     emit(KhatmaState(plans: [plan, ...state.plans], activeId: plan.id));
     await _persist();
+    await _refreshNotificationCalendar();
   }
 
   Future<void> setActive(String id) async {
@@ -63,21 +76,63 @@ class KhatmaCubit extends Cubit<KhatmaState> {
   Future<void> recordProgress(int page) async {
     final plan = state.active;
     if (plan == null) return;
-    final safe = page.clamp(plan.startPage - 1, 604);
-    final completed = safe >= 604;
+    await recordReadingPosition(
+      planId: plan.id,
+      currentPage: math.min(604, page + 1),
+      completedThrough: page,
+    );
+  }
+
+  /// Saves a Khatma reading session independently from the general Mushaf
+  /// bookmark. Progress is monotonic: revisiting earlier pages never erases
+  /// pages already completed.
+  Future<void> recordReadingPosition({
+    required String planId,
+    required int currentPage,
+    int? completedThrough,
+  }) async {
+    final plan = state.plans.where((item) => item.id == planId).firstOrNull;
+    if (plan == null || plan.status != KhatmaStatus.active) return;
+
+    final safeCurrent = currentPage.clamp(plan.startPage, 604);
+    final safeCompleted = completedThrough == null
+        ? plan.progressPage
+        : completedThrough.clamp(plan.startPage - 1, 604);
+    final progress = math.max(plan.progressPage, safeCompleted);
+    final completed = progress >= 604;
+    final currentWardEnd = plan.todayEnd;
+    final nextWardEnd = !completed && progress >= currentWardEnd
+        ? math.min(604, progress + plan.dailyPages)
+        : (plan.currentWardEndPage ?? currentWardEnd);
     final updated = plan.copyWith(
-      progressPage: safe,
+      progressPage: progress,
+      lastReadPage: safeCurrent,
+      currentWardEndPage: nextWardEnd,
       status: completed ? KhatmaStatus.completed : KhatmaStatus.active,
       completedAt: completed ? DateTime.now() : null,
       pausedAt: null,
     );
     await _replace(updated);
+    if (completed || progress >= currentWardEnd) {
+      await _refreshNotificationCalendar();
+    }
+  }
+
+  Future<void> completeReadingPage({
+    required String planId,
+    required int page,
+  }) async {
+    await recordReadingPosition(
+      planId: planId,
+      currentPage: math.min(604, page + 1),
+      completedThrough: page,
+    );
   }
 
   Future<void> completeToday() async {
     final plan = state.active;
     if (plan == null) return;
-    await recordProgress(math.min(604, plan.progressPage + plan.dailyPages));
+    await recordProgress(plan.todayEnd);
   }
 
   Future<void> togglePause() async {
@@ -90,24 +145,29 @@ class KhatmaCubit extends Cubit<KhatmaState> {
         pausedAt: paused ? DateTime.now() : null,
       ),
     );
+    await _refreshNotificationCalendar();
   }
 
   Future<void> rebalance(int remainingDays) async {
     final plan = state.active;
     if (plan == null || plan.remainingPages == 0) return;
     final days = remainingDays.clamp(1, 3650);
+    final daily = (plan.remainingPages / days).ceil().clamp(1, 604);
     await _replace(
       plan.copyWith(
         durationDays: days,
-        dailyPages: (plan.remainingPages / days).ceil().clamp(1, 604),
+        dailyPages: daily,
+        currentWardEndPage: math.min(604, plan.progressPage + daily),
       ),
     );
+    await _refreshNotificationCalendar();
   }
 
   Future<void> delete(String id) async {
     final plans = state.plans.where((item) => item.id != id).toList();
     emit(KhatmaState(plans: plans, activeId: plans.firstOrNull?.id));
     await _persist();
+    await _refreshNotificationCalendar();
   }
 
   Future<void> _replace(KhatmaPlan plan) async {
@@ -126,4 +186,14 @@ class KhatmaCubit extends Cubit<KhatmaState> {
     'activeId': state.activeId,
     'plans': state.plans.map((item) => item.toJson()).toList(),
   });
+
+  Future<void> _refreshNotificationCalendar() async {
+    final service = _notifications;
+    if (service == null) return;
+    final settings = AppSettings.fromJson(_storage.readMap('settings'));
+    if (!settings.notificationsEnabled) return;
+    await service.scheduleAll(
+      NotificationSchedulePlanner.build(storage: _storage, settings: settings),
+    );
+  }
 }

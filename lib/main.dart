@@ -51,7 +51,7 @@ Future<void> main() async {
       adhkarRepository: AdhkarRepository(),
       libraryRepository: LibraryRepository(),
       settingsCubit: settingsCubit,
-      khatmaCubit: KhatmaCubit(storage),
+      khatmaCubit: KhatmaCubit(storage, notifications: notifications),
     ),
   );
 }

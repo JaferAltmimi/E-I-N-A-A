@@ -3,12 +3,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/services/local_notification_service.dart';
 import '../../../../core/widgets/mishkat_widgets.dart';
+import '../../../adhkar/presentation/cubit/adhkar_cubit.dart';
 import '../../../adhkar/presentation/pages/adhkar_page.dart';
+import '../../../adhkar/presentation/pages/adhkar_reader_page.dart';
 import '../../../home/presentation/pages/home_page.dart';
+import '../../../khatma/presentation/cubit/khatma_cubit.dart';
 import '../../../library/presentation/pages/library_page.dart';
+import '../../../library/presentation/cubit/library_cubit.dart';
+import '../../../library/presentation/cubit/library_state.dart';
 import '../../../qibla/presentation/pages/qibla_page.dart';
 import '../../../quran/presentation/pages/quran_page.dart';
+import '../../../quran/presentation/pages/quran_memorization_page.dart';
 import '../../../settings/data/models/app_settings.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
@@ -25,15 +32,80 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _onboardingPresented = false;
+  bool _routingNotification = false;
+
+  @override
+  void initState() {
+    super.initState();
+    notificationTapPayload.addListener(_onNotificationTap);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onNotificationTap());
+  }
+
+  @override
+  void dispose() {
+    notificationTapPayload.removeListener(_onNotificationTap);
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final settings = context.read<SettingsCubit>().state.settings;
+    if (notificationTapPayload.value != null) {
+      _onboardingPresented = true;
+    }
     if (!_onboardingPresented && !settings.onboardingSeen) {
       _onboardingPresented = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _showOnboarding());
     }
+  }
+
+  void _onNotificationTap() {
+    final payload = notificationTapPayload.value;
+    if (!mounted ||
+        payload == null ||
+        payload.isEmpty ||
+        _routingNotification) {
+      return;
+    }
+    _routingNotification = true;
+    notificationTapPayload.value = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final navigator = Navigator.of(context);
+      navigator.popUntil((route) => route.isFirst);
+      final parts = payload.split(':');
+      final destination = parts.first;
+
+      switch (destination) {
+        case 'adhkar':
+          final categoryId = parts.length > 1 && parts[1] == 'evening'
+              ? 133
+              : 1;
+          context.read<ShellCubit>().select(3);
+          context.read<AdhkarCubit>().select(categoryId);
+          navigator.push(
+            MaterialPageRoute<void>(builder: (_) => const AdhkarReaderPage()),
+          );
+          break;
+        case 'khatma':
+          context.read<ShellCubit>().select(4);
+          context.read<LibraryCubit>().setSection(LibrarySection.khatma);
+          if (parts.length > 1) {
+            context.read<KhatmaCubit>().setActive(parts[1]);
+          }
+          break;
+        case 'memorization':
+          context.read<ShellCubit>().select(1);
+          navigator.push(QuranMemorizationPage.route());
+          break;
+        case 'prayer':
+        default:
+          context.read<ShellCubit>().select(0);
+          break;
+      }
+      _routingNotification = false;
+    });
   }
 
   @override
@@ -62,7 +134,8 @@ class _AppShellState extends State<AppShell> {
                 leading: IconButton(
                   tooltip: 'تبديل المظهر',
                   onPressed: () {
-                    final dark = Theme.of(context).brightness == Brightness.dark;
+                    final dark =
+                        Theme.of(context).brightness == Brightness.dark;
                     context.read<SettingsCubit>().setTheme(
                       dark ? AppThemePreference.light : AppThemePreference.dark,
                     );
@@ -78,48 +151,15 @@ class _AppShellState extends State<AppShell> {
                     tooltip: 'الإعدادات',
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsPage(),
+                      ),
                     ),
                     icon: const Icon(Icons.settings_outlined),
                   ),
                 ],
               ),
-        body: Column(
-          children: [
-            if (state.offline)
-              Container(
-                width: double.infinity,
-                color: context.mishkat.primarySoft,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MishkatSpacing.base,
-                  vertical: MishkatSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.wifi_off_rounded,
-                      size: 18,
-                      color: context.mishkat.primary,
-                    ),
-                    const SizedBox(width: MishkatSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'أنت غير متصل — المصحف والأذكار والمواقيت ما زالت متاحة دون إنترنت.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: context.mishkat.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: IndexedStack(index: state.index, children: pages),
-            ),
-          ],
-        ),
+        body: IndexedStack(index: state.index, children: pages),
         bottomNavigationBar: MishkatBottomNavBar(
           selectedIndex: state.index,
           onItemSelected: context.read<ShellCubit>().select,
@@ -138,7 +178,9 @@ class _AppShellState extends State<AppShell> {
       useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MishkatRadius.xl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MishkatRadius.xl),
+        ),
       ),
       builder: (sheetContext) => Padding(
         padding: EdgeInsets.fromLTRB(
@@ -172,9 +214,8 @@ class _AppShellState extends State<AppShell> {
             const SizedBox(height: MishkatSpacing.xs),
             Text(
               'ابدأ بمواقيت مدينتك',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context).textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: MishkatSpacing.sm),
             Text(

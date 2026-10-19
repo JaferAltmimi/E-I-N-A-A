@@ -204,10 +204,12 @@ class _NotificationSettings extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           secondary: const Icon(Icons.notifications_active_outlined),
           title: const Text(
-            'تنبيهات الصلاة',
+            'نظام التنبيهات',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
-          subtitle: const Text('تُجدول محليًا وتعمل والتطبيق مغلق'),
+          subtitle: const Text(
+            'الصلاة والأذكار والختمة والحفظ — تعمل والتطبيق مغلق',
+          ),
           value: settings.notificationsEnabled,
           onChanged: context.read<SettingsCubit>().setNotificationsEnabled,
         ),
@@ -246,85 +248,226 @@ class _AppearanceSettings extends StatelessWidget {
   final AppSettings settings;
 
   @override
-  Widget build(BuildContext context) => MishkatCard(
-    child: Column(
-      children: [
-        DropdownButtonFormField<AppThemePreference>(
-          initialValue: settings.theme,
-          decoration: const InputDecoration(labelText: 'مظهر التطبيق'),
-          items: const [
-            DropdownMenuItem(
-              value: AppThemePreference.system,
-              child: Text('حسب الجهاز'),
+  Widget build(BuildContext context) {
+    final themeDescription = switch (settings.theme) {
+      AppThemePreference.system => 'يتبدّل تلقائيًا مع مظهر جهازك',
+      AppThemePreference.light => 'واجهة فاتحة وواضحة للقراءة نهارًا',
+      AppThemePreference.dark => 'إضاءة هادئة ومريحة في الليل',
+    };
+
+    return MishkatCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: context.mishkat.primarySoft,
+                  borderRadius: MishkatRadius.brMd,
+                ),
+                child: Icon(
+                  Icons.palette_outlined,
+                  color: context.mishkat.primary,
+                ),
+              ),
+              const SizedBox(width: MishkatSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'مظهر التطبيق',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      themeDescription,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.mishkat.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: MishkatSpacing.base),
+          Row(
+            children: [
+              Expanded(
+                child: _ThemeChoice(
+                  preference: AppThemePreference.system,
+                  selected: settings.theme == AppThemePreference.system,
+                  icon: Icons.brightness_auto_rounded,
+                  label: 'تلقائي',
+                ),
+              ),
+              const SizedBox(width: MishkatSpacing.sm),
+              Expanded(
+                child: _ThemeChoice(
+                  preference: AppThemePreference.light,
+                  selected: settings.theme == AppThemePreference.light,
+                  icon: Icons.light_mode_rounded,
+                  label: 'فاتح',
+                ),
+              ),
+              const SizedBox(width: MishkatSpacing.sm),
+              Expanded(
+                child: _ThemeChoice(
+                  preference: AppThemePreference.dark,
+                  selected: settings.theme == AppThemePreference.dark,
+                  icon: Icons.dark_mode_rounded,
+                  label: 'داكن',
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: MishkatSpacing.base),
+            child: Divider(height: 1),
+          ),
+          Text(
+            'إعدادات القراءة',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: context.mishkat.textPrimary,
             ),
-            DropdownMenuItem(
-              value: AppThemePreference.light,
-              child: Text('فاتح'),
+          ),
+          const SizedBox(height: MishkatSpacing.md),
+          DropdownButtonFormField<double>(
+            initialValue: settings.uiFontScale,
+            decoration: const InputDecoration(labelText: 'حجم خط الواجهة'),
+            items: const [
+              DropdownMenuItem(value: 1, child: Text('قياسي')),
+              DropdownMenuItem(value: 1.125, child: Text('كبير')),
+              DropdownMenuItem(value: 1.25, child: Text('كبير جدًا')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                context.read<SettingsCubit>().setUiFontScale(value);
+              }
+            },
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              'حجم المصحف · ${(settings.quranFont / 32 * 100).round()}%',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            DropdownMenuItem(
-              value: AppThemePreference.dark,
-              child: Text('داكن'),
+          ),
+          Slider(
+            min: 20,
+            max: 60,
+            value: settings.quranFont,
+            onChanged: context.read<SettingsCubit>().setQuranFont,
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: settings.reciter,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'قارئ التلاوة'),
+            items: [
+              for (final reciter in AppConstants.reciters)
+                DropdownMenuItem(
+                  value: reciter.id,
+                  child: Text(
+                    reciter.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                context.read<SettingsCubit>().setReciter(value);
+              }
+            },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('إبقاء الشاشة مضاءة أثناء القراءة'),
+            value: settings.keepAwake,
+            onChanged: context.read<SettingsCubit>().setKeepAwake,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('الاهتزاز عند التفاعل'),
+            value: settings.vibrate,
+            onChanged: context.read<SettingsCubit>().setVibration,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeChoice extends StatelessWidget {
+  const _ThemeChoice({
+    required this.preference,
+    required this.selected,
+    required this.icon,
+    required this.label,
+  });
+
+  final AppThemePreference preference;
+  final bool selected;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'المظهر $label',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: ValueKey('theme-${preference.name}'),
+          borderRadius: MishkatRadius.brMd,
+          onTap: () => context.read<SettingsCubit>().setTheme(preference),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(vertical: MishkatSpacing.md),
+            decoration: BoxDecoration(
+              color: selected ? colors.primarySoft : colors.surfaceVariant,
+              borderRadius: MishkatRadius.brMd,
+              border: Border.all(
+                color: selected ? colors.primary : colors.borderSubtle,
+                width: selected ? 1.5 : 1,
+              ),
             ),
-          ],
-          onChanged: (value) {
-            if (value != null) context.read<SettingsCubit>().setTheme(value);
-          },
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<double>(
-          initialValue: settings.uiFontScale,
-          decoration: const InputDecoration(labelText: 'حجم خط الواجهة'),
-          items: const [
-            DropdownMenuItem(value: 1, child: Text('قياسي')),
-            DropdownMenuItem(value: 1.125, child: Text('كبير')),
-            DropdownMenuItem(value: 1.25, child: Text('كبير جدًا')),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              context.read<SettingsCubit>().setUiFontScale(value);
-            }
-          },
-        ),
-        const SizedBox(height: 14),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: Text(
-            'حجم المصحف · ${(settings.quranFont / 32 * 100).round()}%',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  selected ? Icons.check_circle_rounded : icon,
+                  size: 22,
+                  color: selected ? colors.primary : colors.textSecondary,
+                ),
+                const SizedBox(height: MishkatSpacing.xs),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? colors.primary : colors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        Slider(
-          min: 20,
-          max: 60,
-          value: settings.quranFont,
-          onChanged: context.read<SettingsCubit>().setQuranFont,
-        ),
-        DropdownButtonFormField<String>(
-          initialValue: settings.reciter,
-          decoration: const InputDecoration(labelText: 'قارئ التلاوة'),
-          items: [
-            for (final reciter in AppConstants.reciters)
-              DropdownMenuItem(value: reciter.id, child: Text(reciter.name)),
-          ],
-          onChanged: (value) {
-            if (value != null) context.read<SettingsCubit>().setReciter(value);
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('إبقاء الشاشة مضاءة أثناء القراءة'),
-          value: settings.keepAwake,
-          onChanged: context.read<SettingsCubit>().setKeepAwake,
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('الاهتزاز عند التفاعل'),
-          value: settings.vibrate,
-          onChanged: context.read<SettingsCubit>().setVibration,
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _CalculationSettings extends StatelessWidget {

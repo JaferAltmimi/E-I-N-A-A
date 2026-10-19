@@ -1,0 +1,105 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mishkat_app/core/services/local_notification_service.dart';
+import 'package:mishkat_app/core/services/local_storage_service.dart';
+import 'package:mishkat_app/features/khatma/data/models/khatma_plan.dart';
+import 'package:mishkat_app/features/quran/data/models/memorization_plan.dart';
+import 'package:mishkat_app/features/settings/data/models/app_settings.dart';
+import 'package:mishkat_app/features/settings/data/services/notification_schedule_planner.dart';
+
+void main() {
+  test(
+    'builds prayer, adhkar, khatma and recurring memorization reminders',
+    () {
+      final now = DateTime(2026, 10, 19, 12);
+      final khatma = KhatmaPlan(
+        id: 'khatma-1',
+        name: 'ختمتي',
+        durationDays: 30,
+        dailyPages: 20,
+        startDate: now,
+        startPage: 1,
+        progressPage: 40,
+        status: KhatmaStatus.active,
+        reminderPrayer: 'isha',
+        createdAt: now,
+      );
+      final memorization = MemorizationPlan(
+        id: 'hifz-1',
+        title: 'حفظ سورة البقرة',
+        startGlobalAyah: 1,
+        endGlobalAyah: 100,
+        dailyTarget: 5,
+        createdAt: now,
+        reminderHour: 19,
+        reminderMinute: 30,
+      );
+      final storage = _MemoryStorage({
+        'khatma': {
+          'plans': [khatma.toJson()],
+        },
+        'quran_memorization': {
+          'plans': [memorization.toJson()],
+        },
+      });
+      const settings = AppSettings(
+        latitude: 21.4225,
+        longitude: 39.8262,
+        city: 'مكة المكرمة',
+        notificationsEnabled: true,
+        adhkarNotifications: true,
+        preMinutes: 10,
+      );
+
+      final result = NotificationSchedulePlanner.build(
+        storage: storage,
+        settings: settings,
+        now: now,
+        days: 2,
+      );
+
+      expect(
+        result.any((item) => item.kind == AppNotificationKind.adhan),
+        isTrue,
+      );
+      expect(
+        result.any((item) => item.kind == AppNotificationKind.prayerReminder),
+        isTrue,
+      );
+      expect(result.any((item) => item.payload == 'adhkar:morning'), isTrue);
+      expect(result.any((item) => item.payload == 'adhkar:evening'), isTrue);
+      expect(result.any((item) => item.payload == 'khatma:khatma-1'), isTrue);
+      final hifz = result.singleWhere(
+        (item) => item.id == NotificationSchedulePlanner.memorizationReminderId,
+      );
+      expect(hifz.payload, 'memorization:hifz-1');
+      expect(hifz.repeatsDaily, isTrue);
+      expect(hifz.at.hour, 19);
+      expect(hifz.at.minute, 30);
+    },
+  );
+
+  test('emits a cancellation marker when no Hifz reminder is active', () {
+    final result = NotificationSchedulePlanner.build(
+      storage: _MemoryStorage(const {}),
+      settings: const AppSettings(notificationsEnabled: true),
+      now: DateTime(2026, 10, 19),
+    );
+
+    expect(result, hasLength(1));
+    expect(
+      result.single.id,
+      NotificationSchedulePlanner.memorizationReminderId,
+    );
+    expect(result.single.at.isBefore(DateTime(2000)), isTrue);
+  });
+}
+
+class _MemoryStorage extends LocalStorageService {
+  _MemoryStorage(this.values);
+
+  final Map<String, Map<String, dynamic>> values;
+
+  @override
+  Map<String, dynamic> readMap(String key) =>
+      Map<String, dynamic>.from(values[key] ?? const <String, dynamic>{});
+}

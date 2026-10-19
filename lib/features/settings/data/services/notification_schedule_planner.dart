@@ -1,6 +1,7 @@
 import '../../../../core/services/local_notification_service.dart';
 import '../../../khatma/data/models/khatma_plan.dart';
 import '../../../prayer_times/data/services/prayer_calculator.dart';
+import '../../../prayer_times/domain/models/prayer_models.dart';
 import '../../../quran/data/models/memorization_plan.dart';
 import '../../../quran/data/repositories/quran_memorization_repository.dart';
 import '../models/app_settings.dart';
@@ -15,6 +16,7 @@ class NotificationSchedulePlanner {
 
   static const int _prayerBase = 100000;
   static const int _adhkarBase = 200000;
+  static const int _dailyAdhkarBase = 290000;
   static const int _khatmaBase = 300000;
   static const int memorizationReminderId = 800001;
 
@@ -129,11 +131,11 @@ class NotificationSchedulePlanner {
         if (morning != null && morning.isAfter(now)) {
           items.add(
             ScheduledAppNotification(
-              id: _adhkarBase + day * 2,
-              title: 'أذكار الصباح',
-              body: 'ابدأ صباحك بذكر الله، واطمئن قلبك بوردك اليومي.',
+              id: _adhkarBase + day * 10,
+              title: _pick(_morningTitles, date),
+              body: _pick(_morningBodies, date),
               at: morning,
-              payload: 'adhkar:morning',
+              payload: 'adhkar:1',
               sound: true,
               vibrate: settings.vibrate,
               kind: AppNotificationKind.adhkar,
@@ -143,15 +145,23 @@ class NotificationSchedulePlanner {
         if (evening != null && evening.isAfter(now)) {
           items.add(
             ScheduledAppNotification(
-              id: _adhkarBase + day * 2 + 1,
-              title: 'أذكار المساء',
-              body: 'حان وقت أذكار المساء — حفظك الله حتى تصبح.',
+              id: _adhkarBase + day * 10 + 1,
+              title: _pick(_eveningTitles, date),
+              body: _pick(_eveningBodies, date),
               at: evening,
-              payload: 'adhkar:evening',
+              payload: 'adhkar:133',
               sound: true,
               vibrate: settings.vibrate,
               kind: AppNotificationKind.adhkar,
             ),
+          );
+        }
+        if (day == 0) {
+          _addRecurringDailyAdhkar(
+            items: items,
+            times: times,
+            now: now,
+            vibrate: settings.vibrate,
           );
         }
       }
@@ -180,6 +190,136 @@ class NotificationSchedulePlanner {
       }
     }
   }
+
+  static void _addRecurringDailyAdhkar({
+    required List<ScheduledAppNotification> items,
+    required PrayerTimes times,
+    required DateTime now,
+    required bool vibrate,
+  }) {
+    final wakeSource = times['fajr']?.add(const Duration(minutes: 20));
+    final daytimeSource = times['dhuhr']?.add(const Duration(minutes: 75));
+    final sleepSource = times['isha']?.add(const Duration(minutes: 90));
+    final seedDate = DateTime(now.year, now.month, now.day);
+
+    if (wakeSource != null) {
+      items.add(
+        ScheduledAppNotification(
+          id: _dailyAdhkarBase,
+          title: _pick(_wakeTitles, seedDate),
+          body: _pick(_wakeBodies, seedDate),
+          at: _nextDailyOccurrence(wakeSource, now),
+          payload: 'adhkar:3',
+          vibrate: vibrate,
+          repeatsDaily: true,
+          kind: AppNotificationKind.adhkar,
+        ),
+      );
+    }
+    if (daytimeSource != null) {
+      final useIstighfar = _daySeed(seedDate).isOdd;
+      items.add(
+        ScheduledAppNotification(
+          id: _dailyAdhkarBase + 1,
+          title: _pick(_daytimeTitles, seedDate),
+          body: _pick(_daytimeBodies, seedDate),
+          at: _nextDailyOccurrence(daytimeSource, now),
+          payload: useIstighfar ? 'adhkar:129' : 'adhkar:130',
+          vibrate: vibrate,
+          repeatsDaily: true,
+          kind: AppNotificationKind.adhkar,
+        ),
+      );
+    }
+    if (sleepSource != null) {
+      items.add(
+        ScheduledAppNotification(
+          id: _dailyAdhkarBase + 2,
+          title: _pick(_sleepTitles, seedDate),
+          body: _pick(_sleepBodies, seedDate),
+          at: _nextDailyOccurrence(sleepSource, now),
+          payload: 'adhkar:2',
+          vibrate: vibrate,
+          repeatsDaily: true,
+          kind: AppNotificationKind.adhkar,
+        ),
+      );
+    }
+  }
+
+  static DateTime _nextDailyOccurrence(DateTime source, DateTime now) {
+    var result = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      source.hour,
+      source.minute,
+    );
+    if (!result.isAfter(now)) result = result.add(const Duration(days: 1));
+    return result;
+  }
+
+  static String _pick(List<String> values, DateTime date) =>
+      values[_daySeed(date) % values.length];
+
+  static int _daySeed(DateTime date) => DateTime(
+    date.year,
+    date.month,
+    date.day,
+  ).difference(DateTime(2020)).inDays.abs();
+
+  static const _wakeTitles = [
+    'استيقظ على ذكر الله',
+    'صباحٌ بنعمة الله',
+    'ابدأ يومك بالحمد',
+  ];
+  static const _wakeBodies = [
+    'الحمد لله الذي أحيانا بعدما أماتنا وإليه النشور.',
+    'احمد الله على يوم جديد، ثم اقرأ أذكار الاستيقاظ.',
+    'دقائق يسيرة من أذكار الاستيقاظ تفتح يومك بالطمأنينة.',
+  ];
+  static const _morningTitles = [
+    'عطّر صباحك بذكر الله',
+    'حصّن صباحك',
+    'ورد الصباح ينتظرك',
+  ];
+  static const _morningBodies = [
+    'ابدأ صباحك بأذكار تحفظ قلبك وتبارك يومك.',
+    'أصبحنا وأصبح الملك لله — لا تنسَ أذكار الصباح.',
+    'خذ نفسًا هادئًا، وابدأ ورد أذكار الصباح.',
+  ];
+  static const _daytimeTitles = [
+    'سبّح الله',
+    'دقيقة ذكر',
+    'لا تنسَ الاستغفار',
+    'أحبّ الكلام إلى الله',
+  ];
+  static const _daytimeBodies = [
+    'سبحان الله وبحمده، سبحان الله العظيم.',
+    'سبحان الله، والحمد لله، ولا إله إلا الله، والله أكبر.',
+    'استغفر الله وأتوب إليه — ذكر خفيف وأجر عظيم.',
+    'اجعل بين أشغالك لحظةً يطمئن فيها قلبك بذكر الله.',
+  ];
+  static const _eveningTitles = [
+    'عطّر مساءك بذكر الله',
+    'حصّن مساءك',
+    'ورد المساء ينتظرك',
+  ];
+  static const _eveningBodies = [
+    'أمسينا وأمسى الملك لله — حان وقت أذكار المساء.',
+    'اختم نهارك بسكينة أذكار المساء.',
+    'لا تنسَ ورد المساء؛ كلمات يسيرة وحفظ بإذن الله.',
+  ];
+  static const _sleepTitles = [
+    'لا تنسَ أذكار النوم',
+    'نم على ذكر الله',
+    'اختم يومك بالذكر',
+  ];
+  static const _sleepBodies = [
+    'باسمك اللهم أموت وأحيا — اقرأ أذكار النوم قبل أن تنام.',
+    'آية الكرسي والمعوذات من هدي المسلم قبل نومه.',
+    'هدّئ قلبك، واترك يومك بين يدي الله بأذكار النوم.',
+  ];
 
   static List<KhatmaPlan> _activeKhatmaPlans(LocalStorageService storage) {
     final raw = storage.readMap('khatma')['plans'];

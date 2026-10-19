@@ -79,9 +79,9 @@ class _AppShellState extends State<AppShell> {
 
       switch (destination) {
         case 'adhkar':
-          final categoryId = parts.length > 1 && parts[1] == 'evening'
-              ? 133
-              : 1;
+          final route = parts.length > 1 ? parts[1] : '1';
+          final categoryId =
+              int.tryParse(route) ?? (route == 'evening' ? 133 : 1);
           context.read<ShellCubit>().select(3);
           context.read<AdhkarCubit>().select(categoryId);
           navigator.push(

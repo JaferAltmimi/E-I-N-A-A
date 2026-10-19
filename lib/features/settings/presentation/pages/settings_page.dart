@@ -606,7 +606,7 @@ class _AdvancedNotificationSettings extends StatelessWidget {
         'الصوت والتذكير',
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
-      subtitle: const Text('التذكير المبكر وأذكار الصباح والمساء'),
+      subtitle: const Text('التذكير المبكر وأذكار متنوعة على مدار اليوم'),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
         DropdownButtonFormField<int>(
@@ -653,7 +653,8 @@ class _AdvancedNotificationSettings extends StatelessWidget {
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('تذكير أذكار الصباح والمساء'),
+          title: const Text('تذكيرات الأذكار اليومية'),
+          subtitle: const Text('الاستيقاظ والصباح والتسبيح والمساء والنوم'),
           value: settings.adhkarNotifications,
           onChanged: context.read<SettingsCubit>().setAdhkarNotifications,
         ),

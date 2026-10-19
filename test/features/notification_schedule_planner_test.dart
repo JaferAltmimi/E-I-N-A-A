@@ -54,7 +54,7 @@ void main() {
         storage: storage,
         settings: settings,
         now: now,
-        days: 2,
+        days: 3,
       );
 
       expect(
@@ -65,8 +65,31 @@ void main() {
         result.any((item) => item.kind == AppNotificationKind.prayerReminder),
         isTrue,
       );
-      expect(result.any((item) => item.payload == 'adhkar:morning'), isTrue);
-      expect(result.any((item) => item.payload == 'adhkar:evening'), isTrue);
+      expect(result.any((item) => item.payload == 'adhkar:1'), isTrue);
+      expect(result.any((item) => item.payload == 'adhkar:133'), isTrue);
+      expect(result.any((item) => item.payload == 'adhkar:3'), isTrue);
+      expect(result.any((item) => item.payload == 'adhkar:2'), isTrue);
+      expect(
+        result.any(
+          (item) =>
+              item.payload == 'adhkar:129' || item.payload == 'adhkar:130',
+        ),
+        isTrue,
+      );
+      expect(
+        result
+            .where(
+              (item) =>
+                  item.kind == AppNotificationKind.adhkar && item.repeatsDaily,
+            )
+            .length,
+        3,
+      );
+      final eveningReminders = result
+          .where((item) => item.payload == 'adhkar:133')
+          .toList();
+      expect(eveningReminders.length, greaterThanOrEqualTo(2));
+      expect(eveningReminders.first.title, isNot(eveningReminders[1].title));
       expect(result.any((item) => item.payload == 'khatma:khatma-1'), isTrue);
       final hifz = result.singleWhere(
         (item) => item.id == NotificationSchedulePlanner.memorizationReminderId,

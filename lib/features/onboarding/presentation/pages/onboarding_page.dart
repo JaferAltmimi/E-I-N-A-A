@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,30 +17,27 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   static const _pages = <_OnboardingData>[
     _OnboardingData(
-      eyebrow: 'أهلًا بك في',
-      title: 'مِشكاة',
-      description:
-          'رفيقك اليومي إلى نور القرآن، وسكينة الذكر، وطمأنينة الصلاة.',
-      kind: _VisualKind.lantern,
+      eyebrow: 'أهلًا بك في مِشكاة',
+      title: 'مساحة هادئة\nليومك مع الله',
+      description: 'القرآن والصلاة والذكر، قريبة منك في تجربة بسيطة بلا تشتيت.',
+      kind: _VisualKind.welcome,
     ),
     _OnboardingData(
       eyebrow: 'القرآن الكريم',
       title: 'وردٌ يبقى قريبًا',
-      description: 'اقرأ واستمع واحفظ، وتابع ختمتك بخطوات هادئة تناسب يومك.',
+      description: 'اقرأ واستمع واحفظ، ثم عُد إلى موضعك متى شئت.',
       kind: _VisualKind.quran,
     ),
     _OnboardingData(
-      eyebrow: 'يومك مع الله',
-      title: 'لا تفُتك لحظة ذكر',
-      description:
-          'مواقيت دقيقة، قبلة واضحة، وأذكار ترافق صباحك ومساءك حتى دون إنترنت.',
+      eyebrow: 'صلاتك وذكرك',
+      title: 'يومك مرتب بهدوء',
+      description: 'مواقيت واضحة، وقبلة، وأذكار ترافق صباحك ومساءك.',
       kind: _VisualKind.prayer,
     ),
     _OnboardingData(
-      eyebrow: 'مساحتك الخاصة',
+      eyebrow: 'كل شيء جاهز',
       title: 'عبادة بهدوء، كل يوم',
-      description:
-          'كل ما تحتاجه في مكان واحد، بتجربة بسيطة تحترم تركيزك وخصوصيتك.',
+      description: 'ابدأ بخطوة صغيرة اليوم، ودع مِشكاة يحفظ لك ما وصلت إليه.',
       kind: _VisualKind.journey,
     ),
   ];
@@ -73,149 +68,67 @@ class _OnboardingPageState extends State<OnboardingPage> {
   Future<void> _next() async {
     if (_isLast) return _finish();
     HapticFeedback.selectionClick();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     await _controller.nextPage(
-      duration: const Duration(milliseconds: 430),
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 360),
       curve: Curves.easeOutCubic,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final colors = context.mishkat;
-
     return Scaffold(
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 550),
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: dark
-                ? const [Color(0xFF13251F), Color(0xFF0E1714)]
-                : _index == 0
-                ? const [Color(0xFFEAF3F0), Color(0xFFF9FBFA)]
-                : const [Color(0xFFF3F7F6), Color(0xFFFAFCFB)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                child: Row(
-                  children: [
-                    const _CompactBrand(),
-                    const Spacer(),
-                    AnimatedOpacity(
-                      opacity: _isLast ? 0 : 1,
-                      duration: const Duration(milliseconds: 200),
-                      child: IgnorePointer(
-                        ignoring: _isLast,
-                        child: TextButton(
-                          key: const ValueKey('onboarding-skip'),
-                          onPressed: _finish,
-                          child: Text(
-                            'تخطّي',
-                            style: TextStyle(color: colors.textSecondary),
-                          ),
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Row(
+                children: [
+                  const _CompactBrand(),
+                  const Spacer(),
+                  AnimatedOpacity(
+                    opacity: _isLast ? 0 : 1,
+                    duration: const Duration(milliseconds: 160),
+                    child: IgnorePointer(
+                      ignoring: _isLast,
+                      child: TextButton(
+                        key: const ValueKey('onboarding-skip'),
+                        onPressed: _finishing ? null : _finish,
+                        child: Text(
+                          'تخطّي',
+                          style: TextStyle(color: colors.textSecondary),
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: PageView.builder(
-                  key: const ValueKey('onboarding-pages'),
-                  controller: _controller,
-                  itemCount: _pages.length,
-                  onPageChanged: (value) => setState(() => _index = value),
-                  itemBuilder: (context, index) => _OnboardingSlide(
-                    data: _pages[index],
-                    isActive: index == _index,
                   ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: PageView.builder(
+                key: const ValueKey('onboarding-pages'),
+                controller: _controller,
+                itemCount: _pages.length,
+                onPageChanged: (value) => setState(() => _index = value),
+                itemBuilder: (context, index) => _OnboardingSlide(
+                  data: _pages[index],
+                  isActive: index == _index,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _pages.length,
-                        (index) => AnimatedContainer(
-                          key: ValueKey('onboarding-dot-$index'),
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOut,
-                          width: index == _index ? 28 : 7,
-                          height: 7,
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          decoration: BoxDecoration(
-                            color: index == _index
-                                ? colors.primary
-                                : colors.border,
-                            borderRadius: MishkatRadius.brPill,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: FilledButton(
-                        key: const ValueKey('onboarding-primary-action'),
-                        onPressed: _finishing ? null : _next,
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          child: _finishing
-                              ? const SizedBox.square(
-                                  key: ValueKey('finishing'),
-                                  dimension: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Row(
-                                  key: ValueKey(_isLast),
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(_isLast ? 'ابدأ رحلتك' : 'التالي'),
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      _isLast
-                                          ? Icons.auto_awesome_rounded
-                                          : Icons.arrow_back_rounded,
-                                      size: 20,
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _isLast
-                          ? 'يمكنك تخصيص كل شيء لاحقًا من الإعدادات'
-                          : 'اسحب لاكتشاف المزيد',
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: colors.textMuted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            _OnboardingFooter(
+              index: _index,
+              count: _pages.length,
+              isLast: _isLast,
+              finishing: _finishing,
+              onNext: _next,
+            ),
+          ],
         ),
       ),
     );
@@ -229,12 +142,12 @@ class _CompactBrand extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      const BrandMark(size: 25),
-      const SizedBox(width: 8),
+      const BrandMark(size: 24),
+      const SizedBox(width: MishkatSpacing.sm),
       Text(
         'مِشكاة',
         style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.3),
+            ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.3),
       ),
     ],
   );
@@ -248,383 +161,461 @@ class _OnboardingSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final compact = size.height < 700;
+    final compact = MediaQuery.sizeOf(context).height < 700;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Semantics(
       namesRoute: true,
       label: '${data.title}. ${data.description}',
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(24, compact ? 8 : 20, 24, 0),
-        child: Column(
-          children: [
-            Expanded(
-              flex: compact ? 5 : 6,
-              child: Center(
-                child: AnimatedScale(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOutBack,
-                  scale: isActive ? 1 : .92,
-                  child: _OnboardingVisual(kind: data.kind),
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final topPadding = compact ? 8.0 : 20.0;
+          final availableHeight = constraints.maxHeight - topPadding - 12;
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, topPadding, 24, 12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: availableHeight.clamp(0, double.infinity),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedSlide(
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 360),
+                    curve: Curves.easeOutCubic,
+                    offset: isActive ? Offset.zero : const Offset(.04, 0),
+                    child: AnimatedOpacity(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 280),
+                      opacity: isActive ? 1 : .72,
+                      child: _OnboardingVisual(
+                        kind: data.kind,
+                        compact: compact,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: compact ? 20 : 32),
+                  Text(
+                    data.eyebrow,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.mishkat.gold,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: MishkatSpacing.sm),
+                  Text(
+                    data.title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontSize: compact ? 25 : 30,
+                      fontWeight: FontWeight.w800,
+                      height: 1.35,
+                      letterSpacing: -.6,
+                    ),
+                  ),
+                  const SizedBox(height: MishkatSpacing.md),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 350),
+                    child: Text(
+                      data.description,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: context.mishkat.textSecondary,
+                        height: 1.75,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              data.eyebrow,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: context.mishkat.primary,
-                fontWeight: FontWeight.w800,
-                letterSpacing: .2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              data.title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                fontSize: compact ? 28 : 32,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -.8,
-              ),
-            ),
-            const SizedBox(height: 10),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: Text(
-                data.description,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: context.mishkat.textSecondary,
-                  height: 1.75,
-                ),
-              ),
-            ),
-            if (data.kind == _VisualKind.lantern) ...[
-              const SizedBox(height: 14),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OnboardingFooter extends StatelessWidget {
+  const _OnboardingFooter({
+    required this.index,
+    required this.count,
+    required this.isLast,
+    required this.finishing,
+    required this.onNext,
+  });
+
+  final int index;
+  final int count;
+  final bool isLast;
+  final bool finishing;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Column(
+        children: [
+          Row(
+            children: [
               Text(
-                '﴿ اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ ۚ\nمَثَلُ نُورِهِ كَمِشْكَاةٍ فِيهَا مِصْبَاحٌ ﴾',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.mishkat.primaryDark,
-                  fontSize: compact ? 12 : 13,
-                  fontWeight: FontWeight.w600,
-                  height: 1.8,
-                ),
+                '${index + 1} من $count',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: colors.textSecondary),
               ),
-              const SizedBox(height: 3),
-              Text(
-                'سورة النور • ٣٥',
-                style: Theme.of(context).textTheme.labelSmall,
+              const SizedBox(width: MishkatSpacing.md),
+              Expanded(
+                child: Row(
+                  children: List.generate(
+                    count,
+                    (item) => Expanded(
+                      child: AnimatedContainer(
+                        key: ValueKey('onboarding-dot-$item'),
+                        duration: const Duration(milliseconds: 220),
+                        height: 3,
+                        margin: EdgeInsetsDirectional.only(
+                          end: item == count - 1 ? 0 : 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: item <= index ? colors.primary : colors.border,
+                          borderRadius: MishkatRadius.brPill,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
-            SizedBox(height: compact ? 8 : 18),
-          ],
-        ),
+          ),
+          const SizedBox(height: MishkatSpacing.base),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              key: const ValueKey('onboarding-primary-action'),
+              onPressed: finishing ? null : onNext,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: finishing
+                    ? const SizedBox.square(
+                        key: ValueKey('finishing'),
+                        dimension: 19,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Row(
+                        key: ValueKey(isLast),
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(isLast ? 'ابدأ رحلتك' : 'التالي'),
+                          const SizedBox(width: MishkatSpacing.sm),
+                          Icon(
+                            isLast
+                                ? Icons.check_rounded
+                                : Icons.arrow_back_rounded,
+                            size: 19,
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: MishkatSpacing.sm),
+          Text(
+            isLast ? 'يمكنك تغيير تفضيلاتك لاحقًا' : 'يمكنك السحب بين الصفحات',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ],
       ),
     );
   }
 }
 
 class _OnboardingVisual extends StatelessWidget {
-  const _OnboardingVisual({required this.kind});
+  const _OnboardingVisual({required this.kind, required this.compact});
 
   final _VisualKind kind;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final shortest = MediaQuery.sizeOf(context).shortestSide;
-    final dimension = math.min(shortest * .68, 270.0);
-    return SizedBox.square(
-      dimension: dimension,
-      child: Stack(
-        alignment: Alignment.center,
+    final colors = context.mishkat;
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(
+        maxWidth: 350,
+        minHeight: compact ? 148 : 214,
+        maxHeight: compact ? 168 : 230,
+      ),
+      padding: EdgeInsets.all(compact ? 16 : 24),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: MishkatRadius.brXl,
+        border: Border.all(color: colors.borderSubtle),
+      ),
+      child: switch (kind) {
+        _VisualKind.welcome => const _WelcomePreview(),
+        _VisualKind.quran => const _QuranPreview(),
+        _VisualKind.prayer => const _PrayerPreview(),
+        _VisualKind.journey => const _JourneyPreview(),
+      },
+    );
+  }
+}
+
+class _WelcomePreview extends StatelessWidget {
+  const _WelcomePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned.fill(
+          child: CustomPaint(painter: _ArchPainter(color: colors.borderSubtle)),
+        ),
+        Container(
+          width: 88,
+          height: 112,
+          decoration: BoxDecoration(
+            color: colors.primarySoft,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(48),
+              bottom: Radius.circular(18),
+            ),
+          ),
+          child: const Center(child: BrandMark(size: 44)),
+        ),
+        PositionedDirectional(
+          bottom: 7,
+          child: Container(
+            width: 32,
+            height: 2,
+            decoration: BoxDecoration(
+              color: colors.gold,
+              borderRadius: MishkatRadius.brPill,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuranPreview extends StatelessWidget {
+  const _QuranPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const _PreviewRow(
+          icon: Icons.menu_book_outlined,
+          title: 'تابع تلاوتك',
+          subtitle: 'من موضعك الأخير',
+          trailing: 'فتح',
+          emphasized: true,
+        ),
+        Divider(height: 1, indent: 48, color: colors.borderSubtle),
+        const _PreviewRow(
+          icon: Icons.headphones_outlined,
+          title: 'استمع بتدبّر',
+          subtitle: 'تلاوة هادئة بين يديك',
+          trailing: 'استماع',
+        ),
+      ],
+    );
+  }
+}
+
+class _PrayerPreview extends StatelessWidget {
+  const _PrayerPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: dark ? colors.surfaceVariant : colors.brandDeep,
+        borderRadius: MishkatRadius.brLg,
+      ),
+      child: Row(
         children: [
           Container(
-            width: dimension * .86,
-            height: dimension * .86,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: context.mishkat.primarySoft.withValues(alpha: .72),
+              color: colors.heroBorder.withValues(alpha: .75),
+              borderRadius: MishkatRadius.brMd,
+            ),
+            child: Icon(
+              Icons.nights_stay_outlined,
+              color: colors.heroLabel,
+              size: 22,
             ),
           ),
-          CustomPaint(
-            size: Size.square(dimension),
-            painter: _OrbitPainter(
-              color: context.mishkat.primary.withValues(alpha: .18),
+          const SizedBox(width: MishkatSpacing.md),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الصلاة القادمة',
+                  style: TextStyle(
+                    color: colors.heroLabel,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'المغرب',
+                  style: TextStyle(
+                    color: dark ? colors.textPrimary : Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
-          switch (kind) {
-            _VisualKind.lantern => _LanternVisual(dimension: dimension),
-            _VisualKind.quran => _QuranVisual(dimension: dimension),
-            _VisualKind.prayer => _PrayerVisual(dimension: dimension),
-            _VisualKind.journey => _JourneyVisual(dimension: dimension),
-          },
+          Text(
+            '6:18',
+            textDirection: TextDirection.ltr,
+            style: TextStyle(
+              color: dark ? colors.textPrimary : Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _LanternVisual extends StatelessWidget {
-  const _LanternVisual({required this.dimension});
-  final double dimension;
+class _JourneyPreview extends StatelessWidget {
+  const _JourneyPreview();
 
   @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.center,
-    children: [
-      Container(
-        width: dimension * .46,
-        height: dimension * .62,
-        decoration: BoxDecoration(
-          color: context.mishkat.surface.withValues(alpha: .82),
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(dimension),
-            bottom: Radius.circular(dimension * .08),
-          ),
-          border: Border.all(color: context.mishkat.primary, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: context.mishkat.gold.withValues(alpha: .20),
-              blurRadius: 32,
-              spreadRadius: 10,
-            ),
-          ],
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const _PreviewRow(
+          icon: Icons.wb_sunny_outlined,
+          title: 'أذكار الصباح',
+          subtitle: 'ابدأ يومك بذكر هادئ',
+          trailingIcon: Icons.arrow_back_rounded,
+          emphasized: true,
         ),
-      ),
-      Container(
-        width: dimension * .09,
-        height: dimension * .34,
-        decoration: BoxDecoration(
-          color: context.mishkat.gold,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: context.mishkat.gold.withValues(alpha: .55),
-              blurRadius: 24,
-              spreadRadius: 5,
-            ),
-          ],
+        Divider(height: 1, indent: 48, color: colors.borderSubtle),
+        const _PreviewRow(
+          icon: Icons.explore_outlined,
+          title: 'اتجاه القبلة',
+          subtitle: 'واضح حين تحتاجه',
+          trailingIcon: Icons.arrow_back_rounded,
         ),
-      ),
-      Positioned(
-        top: dimension * .11,
-        child: Icon(
-          Icons.auto_awesome_rounded,
-          size: dimension * .10,
-          color: context.mishkat.gold,
-        ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
-class _QuranVisual extends StatelessWidget {
-  const _QuranVisual({required this.dimension});
-  final double dimension;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.center,
-    children: [
-      Transform.rotate(
-        angle: -.05,
-        child: Container(
-          width: dimension * .58,
-          height: dimension * .48,
-          padding: EdgeInsets.all(dimension * .055),
-          decoration: BoxDecoration(
-            color: context.mishkat.primaryDark,
-            borderRadius: BorderRadius.circular(dimension * .07),
-            boxShadow: MishkatShadows.elevated(context),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(dimension * .035),
-              border: Border.all(
-                color: context.mishkat.heroLabel.withValues(alpha: .75),
-              ),
-            ),
-            child: Icon(
-              Icons.menu_book_rounded,
-              size: dimension * .20,
-              color: context.mishkat.heroLabel,
-            ),
-          ),
-        ),
-      ),
-      _FloatingChip(
-        alignment: const Alignment(.88, -.72),
-        icon: Icons.headphones_rounded,
-        label: 'استماع',
-      ),
-      _FloatingChip(
-        alignment: const Alignment(-.88, .72),
-        icon: Icons.bookmark_outline_rounded,
-        label: 'متابعة',
-      ),
-    ],
-  );
-}
-
-class _PrayerVisual extends StatelessWidget {
-  const _PrayerVisual({required this.dimension});
-  final double dimension;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.center,
-    children: [
-      Container(
-        width: dimension * .59,
-        padding: EdgeInsets.symmetric(
-          horizontal: dimension * .07,
-          vertical: dimension * .065,
-        ),
-        decoration: BoxDecoration(
-          color: context.mishkat.surface,
-          borderRadius: BorderRadius.circular(dimension * .09),
-          border: Border.all(color: context.mishkat.borderSubtle),
-          boxShadow: MishkatShadows.elevated(context),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.nights_stay_rounded,
-              color: context.mishkat.primary,
-              size: dimension * .14,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'المغرب',
-              style: TextStyle(
-                color: context.mishkat.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              '٦:١٨',
-              textDirection: TextDirection.rtl,
-              style: TextStyle(
-                color: context.mishkat.textPrimary,
-                fontSize: dimension * .10,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-      _FloatingChip(
-        alignment: const Alignment(.95, -.72),
-        icon: Icons.explore_outlined,
-        label: 'القبلة',
-      ),
-      _FloatingChip(
-        alignment: const Alignment(-.94, .76),
-        icon: Icons.notifications_none_rounded,
-        label: 'تنبيه',
-      ),
-    ],
-  );
-}
-
-class _JourneyVisual extends StatelessWidget {
-  const _JourneyVisual({required this.dimension});
-  final double dimension;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.center,
-    children: [
-      SizedBox.square(
-        dimension: dimension * .57,
-        child: CircularProgressIndicator(
-          value: .78,
-          strokeWidth: dimension * .035,
-          strokeCap: StrokeCap.round,
-          backgroundColor: context.mishkat.surface,
-          color: context.mishkat.primary,
-        ),
-      ),
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.auto_awesome_rounded,
-            size: dimension * .13,
-            color: context.mishkat.gold,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'ورد اليوم',
-            style: TextStyle(
-              color: context.mishkat.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            '٣ من ٤',
-            style: TextStyle(
-              fontSize: dimension * .075,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-      _FloatingChip(
-        alignment: const Alignment(.97, -.75),
-        icon: Icons.done_rounded,
-        label: 'ذكر',
-      ),
-      _FloatingChip(
-        alignment: const Alignment(-.96, .76),
-        icon: Icons.lock_outline_rounded,
-        label: 'خصوصية',
-      ),
-    ],
-  );
-}
-
-class _FloatingChip extends StatelessWidget {
-  const _FloatingChip({
-    required this.alignment,
+class _PreviewRow extends StatelessWidget {
+  const _PreviewRow({
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.trailingIcon,
+    this.emphasized = false,
   });
 
-  final Alignment alignment;
   final IconData icon;
-  final String label;
+  final String title;
+  final String subtitle;
+  final String? trailing;
+  final IconData? trailingIcon;
+  final bool emphasized;
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: alignment,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: context.mishkat.surface,
-        borderRadius: MishkatRadius.brPill,
-        border: Border.all(color: context.mishkat.borderSubtle),
-        boxShadow: MishkatShadows.subtle(context),
-      ),
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: context.mishkat.primary),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: emphasized ? colors.primarySoft : colors.surfaceMuted,
+              borderRadius: MishkatRadius.brMd,
+            ),
+            child: Icon(icon, size: 20, color: colors.primary),
           ),
+          const SizedBox(width: MishkatSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null)
+            Text(
+              trailing!,
+              style: TextStyle(
+                color: colors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else if (trailingIcon != null)
+            Icon(trailingIcon, size: 17, color: colors.textMuted),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
-class _OrbitPainter extends CustomPainter {
-  const _OrbitPainter({required this.color});
+class _ArchPainter extends CustomPainter {
+  const _ArchPainter({required this.color});
+
   final Color color;
 
   @override
@@ -634,29 +625,19 @@ class _OrbitPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     final rect = Rect.fromCenter(
-      center: size.center(Offset.zero),
-      width: size.width * .96,
-      height: size.height * .64,
+      center: Offset(size.width / 2, size.height * .64),
+      width: size.width * .72,
+      height: size.height * 1.05,
     );
-    canvas.save();
-    canvas.translate(size.width / 2, size.height / 2);
-    canvas.rotate(-.32);
-    canvas.translate(-size.width / 2, -size.height / 2);
-    canvas.drawOval(rect, paint);
-    canvas.restore();
-    canvas.drawCircle(
-      Offset(size.width * .88, size.height * .38),
-      4,
-      Paint()..color = color.withValues(alpha: .8),
-    );
+    canvas.drawArc(rect, 3.15, 3.14, false, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _OrbitPainter oldDelegate) =>
+  bool shouldRepaint(covariant _ArchPainter oldDelegate) =>
       oldDelegate.color != color;
 }
 
-enum _VisualKind { lantern, quran, prayer, journey }
+enum _VisualKind { welcome, quran, prayer, journey }
 
 class _OnboardingData {
   const _OnboardingData({

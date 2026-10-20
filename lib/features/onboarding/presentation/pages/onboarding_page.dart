@@ -17,9 +17,9 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   static const _pages = <_OnboardingData>[
     _OnboardingData(
-      eyebrow: 'أهلًا بك في مِشكاة',
-      title: 'مساحة هادئة\nليومك مع الله',
-      description: 'القرآن والصلاة والذكر، قريبة منك في تجربة بسيطة بلا تشتيت.',
+      eyebrow: 'من نور الآية جاء الاسم',
+      title: 'مِشكاة',
+      description: 'رفيقك اليومي للقرآن والصلاة والذكر، في مساحة تحفظ هدوءك.',
       kind: _VisualKind.welcome,
     ),
     _OnboardingData(
@@ -89,7 +89,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Row(
                 children: [
-                  const _CompactBrand(),
                   const Spacer(),
                   AnimatedOpacity(
                     opacity: _isLast ? 0 : 1,
@@ -135,24 +134,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 }
 
-class _CompactBrand extends StatelessWidget {
-  const _CompactBrand();
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      const BrandMark(size: 24),
-      const SizedBox(width: MishkatSpacing.sm),
-      Text(
-        'مِشكاة',
-        style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.3),
-      ),
-    ],
-  );
-}
-
 class _OnboardingSlide extends StatelessWidget {
   const _OnboardingSlide({required this.data, required this.isActive});
 
@@ -178,60 +159,162 @@ class _OnboardingSlide extends StatelessWidget {
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedSlide(
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 360),
-                    curve: Curves.easeOutCubic,
-                    offset: isActive ? Offset.zero : const Offset(.04, 0),
-                    child: AnimatedOpacity(
-                      duration: reduceMotion
-                          ? Duration.zero
-                          : const Duration(milliseconds: 280),
-                      opacity: isActive ? 1 : .72,
-                      child: _OnboardingVisual(
-                        kind: data.kind,
-                        compact: compact,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: compact ? 20 : 32),
-                  Text(
-                    data.eyebrow,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: context.mishkat.gold,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: MishkatSpacing.sm),
-                  Text(
-                    data.title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontSize: compact ? 25 : 30,
-                      fontWeight: FontWeight.w800,
-                      height: 1.35,
-                      letterSpacing: -.6,
-                    ),
-                  ),
-                  const SizedBox(height: MishkatSpacing.md),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 350),
-                    child: Text(
-                      data.description,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: context.mishkat.textSecondary,
-                        height: 1.75,
-                      ),
-                    ),
-                  ),
-                ],
+                children: data.kind == _VisualKind.welcome
+                    ? [_WelcomeIntroduction(data: data, compact: compact)]
+                    : [
+                        AnimatedSlide(
+                          duration: reduceMotion
+                              ? Duration.zero
+                              : const Duration(milliseconds: 360),
+                          curve: Curves.easeOutCubic,
+                          offset: isActive ? Offset.zero : const Offset(.04, 0),
+                          child: AnimatedOpacity(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 280),
+                            opacity: isActive ? 1 : .72,
+                            child: _OnboardingVisual(
+                              kind: data.kind,
+                              compact: compact,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: compact ? 20 : 32),
+                        Text(
+                          data.eyebrow,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: context.mishkat.gold,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: MishkatSpacing.sm),
+                        Text(
+                          data.title,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.displayLarge
+                              ?.copyWith(
+                                fontSize: compact ? 25 : 30,
+                                fontWeight: FontWeight.w800,
+                                height: 1.35,
+                                letterSpacing: -.6,
+                              ),
+                        ),
+                        const SizedBox(height: MishkatSpacing.md),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 350),
+                          child: Text(
+                            data.description,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: context.mishkat.textSecondary,
+                                  height: 1.75,
+                                ),
+                          ),
+                        ),
+                      ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _WelcomeIntroduction extends StatelessWidget {
+  const _WelcomeIntroduction({required this.data, required this.compact});
+
+  final _OnboardingData data;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mishkat;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Column(
+        children: [
+          Container(
+            width: compact ? 62 : 72,
+            height: compact ? 72 : 84,
+            decoration: BoxDecoration(
+              color: colors.primarySoft,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(40),
+                bottom: Radius.circular(16),
+              ),
+            ),
+            child: Center(child: BrandMark(size: compact ? 31 : 36)),
+          ),
+          SizedBox(height: compact ? 12 : 16),
+          Text(
+            data.title,
+            style: Theme.of(context).textTheme.displayLarge?.copyWith(
+              color: colors.brandDeep,
+              fontSize: compact ? 36 : 42,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: MishkatSpacing.xs),
+          Text(
+            data.eyebrow,
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: colors.gold, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: compact ? 16 : 24),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 16 : 20,
+              vertical: compact ? 14 : 18,
+            ),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: MishkatRadius.brLg,
+              border: Border.all(color: colors.borderSubtle),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '﴿ اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ ۚ\nمَثَلُ نُورِهِ كَمِشْكَاةٍ فِيهَا مِصْبَاحٌ ﴾',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: compact ? 16 : 19,
+                    fontWeight: FontWeight.w600,
+                    height: 1.9,
+                  ),
+                ),
+                const SizedBox(height: MishkatSpacing.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(width: 20, height: 1, color: colors.gold),
+                    const SizedBox(width: MishkatSpacing.sm),
+                    Text(
+                      'سورة النور · 35',
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: colors.textSecondary),
+                    ),
+                    const SizedBox(width: MishkatSpacing.sm),
+                    Container(width: 20, height: 1, color: colors.gold),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: compact ? 14 : 20),
+          Text(
+            data.description,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: colors.textSecondary, height: 1.7),
+          ),
+        ],
       ),
     );
   }
@@ -260,31 +343,19 @@ class _OnboardingFooter extends StatelessWidget {
       child: Column(
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                '${index + 1} من $count',
-                style: Theme.of(context).textTheme.labelSmall
-                    ?.copyWith(color: colors.textSecondary),
-              ),
-              const SizedBox(width: MishkatSpacing.md),
-              Expanded(
-                child: Row(
-                  children: List.generate(
-                    count,
-                    (item) => Expanded(
-                      child: AnimatedContainer(
-                        key: ValueKey('onboarding-dot-$item'),
-                        duration: const Duration(milliseconds: 220),
-                        height: 3,
-                        margin: EdgeInsetsDirectional.only(
-                          end: item == count - 1 ? 0 : 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: item <= index ? colors.primary : colors.border,
-                          borderRadius: MishkatRadius.brPill,
-                        ),
-                      ),
-                    ),
+              ...List.generate(
+                count,
+                (item) => AnimatedContainer(
+                  key: ValueKey('onboarding-dot-$item'),
+                  duration: const Duration(milliseconds: 220),
+                  width: item == index ? 20 : 6,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: item == index ? colors.primary : colors.border,
+                    borderRadius: MishkatRadius.brPill,
                   ),
                 ),
               ),
@@ -313,7 +384,13 @@ class _OnboardingFooter extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(isLast ? 'ابدأ رحلتك' : 'التالي'),
+                          Text(
+                            isLast
+                                ? 'ابدأ رحلتك'
+                                : index == 0
+                                ? 'اكتشف مِشكاة'
+                                : 'التالي',
+                          ),
                           const SizedBox(width: MishkatSpacing.sm),
                           Icon(
                             isLast
@@ -325,11 +402,6 @@ class _OnboardingFooter extends StatelessWidget {
                       ),
               ),
             ),
-          ),
-          const SizedBox(height: MishkatSpacing.sm),
-          Text(
-            isLast ? 'يمكنك تغيير تفضيلاتك لاحقًا' : 'يمكنك السحب بين الصفحات',
-            style: Theme.of(context).textTheme.labelSmall,
           ),
         ],
       ),
@@ -360,51 +432,11 @@ class _OnboardingVisual extends StatelessWidget {
         border: Border.all(color: colors.borderSubtle),
       ),
       child: switch (kind) {
-        _VisualKind.welcome => const _WelcomePreview(),
+        _VisualKind.welcome => const SizedBox.shrink(),
         _VisualKind.quran => const _QuranPreview(),
         _VisualKind.prayer => const _PrayerPreview(),
         _VisualKind.journey => const _JourneyPreview(),
       },
-    );
-  }
-}
-
-class _WelcomePreview extends StatelessWidget {
-  const _WelcomePreview();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.mishkat;
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Positioned.fill(
-          child: CustomPaint(painter: _ArchPainter(color: colors.borderSubtle)),
-        ),
-        Container(
-          width: 88,
-          height: 112,
-          decoration: BoxDecoration(
-            color: colors.primarySoft,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(48),
-              bottom: Radius.circular(18),
-            ),
-          ),
-          child: const Center(child: BrandMark(size: 44)),
-        ),
-        PositionedDirectional(
-          bottom: 7,
-          child: Container(
-            width: 32,
-            height: 2,
-            decoration: BoxDecoration(
-              color: colors.gold,
-              borderRadius: MishkatRadius.brPill,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -611,30 +643,6 @@ class _PreviewRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ArchPainter extends CustomPainter {
-  const _ArchPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final rect = Rect.fromCenter(
-      center: Offset(size.width / 2, size.height * .64),
-      width: size.width * .72,
-      height: size.height * 1.05,
-    );
-    canvas.drawArc(rect, 3.15, 3.14, false, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArchPainter oldDelegate) =>
-      oldDelegate.color != color;
 }
 
 enum _VisualKind { welcome, quran, prayer, journey }

@@ -22,9 +22,9 @@ void main() {
 
     await tester.pumpWidget(_app(onComplete: () async => completions += 1));
 
-    expect(find.text('مِشكاة'), findsWidgets);
-    expect(find.textContaining('مساحة هادئة'), findsOneWidget);
-    expect(find.text('1 من 4'), findsOneWidget);
+    expect(find.text('مِشكاة'), findsOneWidget);
+    expect(find.text('من نور الآية جاء الاسم'), findsOneWidget);
+    expect(find.textContaining('اللَّهُ نُورُ السَّمَاوَاتِ'), findsOneWidget);
 
     for (var step = 0; step < 3; step++) {
       await tester.tap(find.byKey(const ValueKey('onboarding-primary-action')));
@@ -33,7 +33,6 @@ void main() {
 
     expect(find.text('عبادة بهدوء، كل يوم'), findsOneWidget);
     expect(find.text('ابدأ رحلتك'), findsOneWidget);
-    expect(find.text('4 من 4'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('onboarding-primary-action')));
     await tester.pump();

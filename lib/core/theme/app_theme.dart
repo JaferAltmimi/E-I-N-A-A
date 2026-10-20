@@ -35,18 +35,21 @@ class AppTheme {
     required MishkatColors colors,
     required double scale,
   }) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      brightness: brightness,
-      surface: surface,
-    ).copyWith(
-      primary: primary,
-      onPrimary: brightness == Brightness.light ? Colors.white : Colors.black,
-      surface: surface,
-      onSurface: onSurface,
-      outline: colors.border,
-      outlineVariant: colors.borderSubtle,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: primary,
+          brightness: brightness,
+          surface: surface,
+        ).copyWith(
+          primary: primary,
+          onPrimary: brightness == Brightness.light
+              ? Colors.white
+              : Colors.black,
+          surface: surface,
+          onSurface: onSurface,
+          outline: colors.border,
+          outlineVariant: colors.borderSubtle,
+        );
 
     final base = ThemeData(
       useMaterial3: true,
@@ -54,7 +57,13 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       fontFamily: 'Cairo',
-      fontFamilyFallback: const ['Cairo', 'SF Arabic', 'Noto Sans Arabic', 'Segoe UI', 'Arial'],
+      fontFamilyFallback: const [
+        'Cairo',
+        'SF Arabic',
+        'Noto Sans Arabic',
+        'Segoe UI',
+        'Arial',
+      ],
       extensions: <ThemeExtension<dynamic>>[colors],
     );
 
@@ -142,12 +151,11 @@ class AppTheme {
               color: colors.textMuted,
             ),
           ),
-      primaryTextTheme: base.primaryTextTheme
-          .apply(
-            fontFamily: 'Cairo',
-            bodyColor: onSurface,
-            displayColor: onSurface,
-          ),
+      primaryTextTheme: base.primaryTextTheme.apply(
+        fontFamily: 'Cairo',
+        bodyColor: onSurface,
+        displayColor: onSurface,
+      ),
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -181,8 +189,13 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: brightness == Brightness.light ? colors.surfaceVariant : colors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: brightness == Brightness.light
+            ? colors.surfaceVariant
+            : colors.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: MishkatRadius.brMd,
           borderSide: BorderSide.none,
@@ -206,7 +219,9 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: brightness == Brightness.light ? Colors.white : Colors.black,
+          foregroundColor: brightness == Brightness.light
+              ? Colors.white
+              : Colors.black,
           minimumSize: const Size(44, 46),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: MishkatRadius.brMd),
@@ -214,7 +229,11 @@ class AppTheme {
             fontSize: 14 * scale,
             fontWeight: FontWeight.w700,
             fontFamily: 'Cairo',
-            fontFamilyFallback: const ['Cairo', 'SF Arabic', 'Noto Sans Arabic'],
+            fontFamilyFallback: const [
+              'Cairo',
+              'SF Arabic',
+              'Noto Sans Arabic',
+            ],
           ),
         ),
       ),
@@ -228,7 +247,11 @@ class AppTheme {
             fontSize: 13.5 * scale,
             fontWeight: FontWeight.w600,
             fontFamily: 'Cairo',
-            fontFamilyFallback: const ['Cairo', 'SF Arabic', 'Noto Sans Arabic'],
+            fontFamilyFallback: const [
+              'Cairo',
+              'SF Arabic',
+              'Noto Sans Arabic',
+            ],
           ),
         ),
       ),
@@ -239,7 +262,11 @@ class AppTheme {
             fontSize: 13 * scale,
             fontWeight: FontWeight.w700,
             fontFamily: 'Cairo',
-            fontFamilyFallback: const ['Cairo', 'SF Arabic', 'Noto Sans Arabic'],
+            fontFamilyFallback: const [
+              'Cairo',
+              'SF Arabic',
+              'Noto Sans Arabic',
+            ],
           ),
         ),
       ),
@@ -281,6 +308,36 @@ class AppTheme {
           fontFamilyFallback: const ['Cairo', 'SF Arabic', 'Noto Sans Arabic'],
         ),
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colors.textMuted.withValues(alpha: 0.55);
+          }
+          if (states.contains(WidgetState.selected)) {
+            return scheme.onPrimary;
+          }
+          // Keep the handle visibly separate from the muted off track.
+          return brightness == Brightness.light
+              ? colors.surface
+              : colors.textPrimary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colors.surfaceMuted.withValues(alpha: 0.55);
+          }
+          return states.contains(WidgetState.selected)
+              ? primary
+              : colors.surfaceMuted;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colors.borderSubtle.withValues(alpha: 0.55);
+          }
+          return states.contains(WidgetState.selected)
+              ? primary
+              : colors.border;
+        }),
+      ),
       navigationBarTheme: NavigationBarThemeData(
         height: 68,
         elevation: 0,
@@ -294,15 +351,27 @@ class AppTheme {
             fontSize: 11 * scale,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
             fontFamily: 'Cairo',
-            fontFamilyFallback: const ['Cairo', 'SF Arabic', 'Noto Sans Arabic'],
-            color: isSelected ? (brightness == Brightness.light ? colors.primaryDark : colors.primary) : colors.textSecondary,
+            fontFamilyFallback: const [
+              'Cairo',
+              'SF Arabic',
+              'Noto Sans Arabic',
+            ],
+            color: isSelected
+                ? (brightness == Brightness.light
+                      ? colors.primaryDark
+                      : colors.primary)
+                : colors.textSecondary,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return IconThemeData(
             size: 22,
-            color: isSelected ? (brightness == Brightness.light ? colors.primaryDark : colors.primary) : colors.textSecondary,
+            color: isSelected
+                ? (brightness == Brightness.light
+                      ? colors.primaryDark
+                      : colors.primary)
+                : colors.textSecondary,
           );
         }),
       ),

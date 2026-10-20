@@ -7,12 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000001 /* adhan1.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* adhan1.caf */; };
-		A10000000000000000000002 /* adhan2.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* adhan2.caf */; };
-		A10000000000000000000003 /* adhan3.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* adhan3.caf */; };
-		A10000000000000000000004 /* adhan4.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* adhan4.caf */; };
-		A10000000000000000000005 /* adhan5.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* adhan5.caf */; };
-		A10000000000000000000006 /* adhan6.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* adhan6.caf */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
@@ -22,6 +16,12 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A10000000000000000000001 /* adhan1.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* adhan1.caf */; };
+		A10000000000000000000002 /* adhan2.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* adhan2.caf */; };
+		A10000000000000000000003 /* adhan3.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* adhan3.caf */; };
+		A10000000000000000000004 /* adhan4.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* adhan4.caf */; };
+		A10000000000000000000005 /* adhan5.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* adhan5.caf */; };
+		A10000000000000000000006 /* adhan6.caf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* adhan6.caf */; };
 		B74996490F1AE8F70C0E7CB3 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 81679C47659432E8356B92FC /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -49,12 +49,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A20000000000000000000001 /* adhan1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan1.caf; sourceTree = "<group>"; };
-		A20000000000000000000002 /* adhan2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan2.caf; sourceTree = "<group>"; };
-		A20000000000000000000003 /* adhan3.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan3.caf; sourceTree = "<group>"; };
-		A20000000000000000000004 /* adhan4.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan4.caf; sourceTree = "<group>"; };
-		A20000000000000000000005 /* adhan5.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan5.caf; sourceTree = "<group>"; };
-		A20000000000000000000006 /* adhan6.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan6.caf; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		22980528A35877FA5B70D516 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
@@ -75,6 +69,12 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9D715319E8E3D515D08E2B34 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
+		A20000000000000000000001 /* adhan1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan1.caf; sourceTree = "<group>"; };
+		A20000000000000000000002 /* adhan2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan2.caf; sourceTree = "<group>"; };
+		A20000000000000000000003 /* adhan3.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan3.caf; sourceTree = "<group>"; };
+		A20000000000000000000004 /* adhan4.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan4.caf; sourceTree = "<group>"; };
+		A20000000000000000000005 /* adhan5.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan5.caf; sourceTree = "<group>"; };
+		A20000000000000000000006 /* adhan6.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = adhan6.caf; sourceTree = "<group>"; };
 		B2543788BED12E6E018322D3 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C20CC9392288CD1AF1E18DAD /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		C8A5BD4CBE9CA07DF13784DF /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
@@ -101,19 +101,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A30000000000000000000001 /* Sounds */ = {
-			isa = PBXGroup;
-			children = (
-				A20000000000000000000001 /* adhan1.caf */,
-				A20000000000000000000002 /* adhan2.caf */,
-				A20000000000000000000003 /* adhan3.caf */,
-				A20000000000000000000004 /* adhan4.caf */,
-				A20000000000000000000005 /* adhan5.caf */,
-				A20000000000000000000006 /* adhan6.caf */,
-			);
-			path = Sounds;
-			sourceTree = "<group>";
-		};
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -181,8 +168,20 @@
 				9D715319E8E3D515D08E2B34 /* Pods-RunnerTests.release.xcconfig */,
 				C8A5BD4CBE9CA07DF13784DF /* Pods-RunnerTests.profile.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000001 /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* adhan1.caf */,
+				A20000000000000000000002 /* adhan2.caf */,
+				A20000000000000000000003 /* adhan3.caf */,
+				A20000000000000000000004 /* adhan4.caf */,
+				A20000000000000000000005 /* adhan5.caf */,
+				A20000000000000000000006 /* adhan6.caf */,
+			);
+			path = Sounds;
 			sourceTree = "<group>";
 		};
 		D223EC5ED835D347B4C56219 /* Frameworks */ = {
@@ -351,9 +350,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -507,14 +510,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = BWWSTD9SQW;
+				DEVELOPMENT_TEAM = Z6WLFR3247;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dakomn.mishkatapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -692,14 +697,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = BWWSTD9SQW;
+				DEVELOPMENT_TEAM = Z6WLFR3247;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dakomn.mishkatapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -715,14 +722,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = BWWSTD9SQW;
+				DEVELOPMENT_TEAM = Z6WLFR3247;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dakomn.mishkatapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

@@ -15,6 +15,7 @@ import '../features/home/presentation/cubit/home_cubit.dart';
 import '../features/khatma/presentation/cubit/khatma_cubit.dart';
 import '../features/library/data/repositories/library_repository.dart';
 import '../features/library/presentation/cubit/library_cubit.dart';
+import '../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../features/qibla/presentation/cubit/qibla_cubit.dart';
 import '../features/quran/data/repositories/quran_memorization_repository.dart';
 import '../features/quran/data/repositories/quran_repository.dart';
@@ -41,6 +42,7 @@ class MishkatApp extends StatelessWidget {
     required this.khatmaCubit,
     this.speechService,
     this.offlineDownloads,
+    this.initiallyShowOnboarding = false,
   });
 
   final LocalStorageService storage;
@@ -53,6 +55,7 @@ class MishkatApp extends StatelessWidget {
   final KhatmaCubit khatmaCubit;
   final SpeechRecognitionService? speechService;
   final OfflineAudioDownloadController? offlineDownloads;
+  final bool initiallyShowOnboarding;
 
   @override
   Widget build(BuildContext context) {
@@ -143,11 +146,49 @@ class MishkatApp extends StatelessWidget {
                   },
                 ),
               ],
-              child: const AppShell(),
+              child: _AppEntry(
+                storage: storage,
+                initiallyShowOnboarding: initiallyShowOnboarding,
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _AppEntry extends StatefulWidget {
+  const _AppEntry({
+    required this.storage,
+    required this.initiallyShowOnboarding,
+  });
+
+  final LocalStorageService storage;
+  final bool initiallyShowOnboarding;
+
+  @override
+  State<_AppEntry> createState() => _AppEntryState();
+}
+
+class _AppEntryState extends State<_AppEntry> {
+  late bool _showOnboarding = widget.initiallyShowOnboarding;
+
+  Future<void> _completeOnboarding() async {
+    await widget.storage.writeInt('onboarding_version', 1);
+    if (mounted) setState(() => _showOnboarding = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: const Duration(milliseconds: 500),
+    switchInCurve: Curves.easeOutCubic,
+    switchOutCurve: Curves.easeInCubic,
+    child: _showOnboarding
+        ? OnboardingPage(
+            key: const ValueKey('onboarding'),
+            onComplete: _completeOnboarding,
+          )
+        : const AppShell(key: ValueKey('app-shell')),
+  );
 }

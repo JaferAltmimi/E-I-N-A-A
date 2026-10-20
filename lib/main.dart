@@ -52,6 +52,7 @@ Future<void> main() async {
       libraryRepository: LibraryRepository(),
       settingsCubit: settingsCubit,
       khatmaCubit: KhatmaCubit(storage, notifications: notifications),
+      initiallyShowOnboarding: storage.readInt('onboarding_version') < 1,
     ),
   );
 }
